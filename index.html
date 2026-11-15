@@ -5,9 +5,11 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>STORM ISLAND - SEASON 1</title>
+
 <script type="importmap">
 {"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js"}}
 </script>
+
 <style>
 *{box-sizing:border-box}
 body{margin:0;background:#101827;color:white;font-family:Arial;overflow:hidden}
@@ -15,7 +17,9 @@ button{background:#e8a83b;color:#151515;border:0;padding:11px 17px;border-radius
 button:hover{filter:brightness(1.2)}
 button:disabled{opacity:.4;cursor:not-allowed}
 .panel{background:#17283c;border:1px solid #49627c;border-radius:14px;padding:18px;max-width:750px;margin:15px auto}
-#lobby{position:absolute;inset:0;overflow:auto;text-align:center;padding:20px;background:radial-gradient(circle at top,#356b85,#101827 75%)}
+#lobby{position:absolute;inset:0;overflow:auto;text-align:center;padding:20px;background:linear-gradient(#183e58cc,#101827ee)}
+#lobby3d{position:fixed;inset:0;width:100%;height:100%;z-index:0;pointer-events:none}
+#lobby>*:not(#lobby3d){position:relative;z-index:1}
 h1{font-size:clamp(42px,8vw,75px);line-height:.9;margin:20px}
 h2{letter-spacing:3px}
 .tag{color:#ffbd48;letter-spacing:3px;font-weight:bold}
@@ -54,9 +58,22 @@ input,select{padding:10px;border-radius:6px;border:0;margin:7px;width:90%;max-wi
 #intro{position:fixed;inset:0;z-index:10;background:linear-gradient(#173c58,#101827);display:flex;align-items:center;justify-content:center;flex-direction:column;text-align:center}
 #intro h1{letter-spacing:5px}
 #intro p{color:#ffbd48;letter-spacing:4px}
-@media(max-width:600px){#miniMap{width:115px;height:115px;top:85px}#feed{top:210px;width:190px;font-size:10px}#healthBox{width:145px}#hud{font-size:11px}}
+#redeemMessage{font-weight:bold;color:#63eaff;min-height:22px}
+#endScreen{display:none;position:fixed;inset:0;z-index:100;align-items:center;justify-content:center;text-align:center;background:radial-gradient(circle at center,#54258a,#111426 75%)}
+#endContent{width:min(90%,650px);padding:35px 20px;border:2px solid #b77aff;border-radius:20px;background:#101827ef;box-shadow:0 0 45px #963cff88}
+#endLogo{font-size:clamp(38px,8vw,75px);font-weight:1000;font-style:italic;color:#d4a1ff;text-shadow:0 0 25px #963cff}
+#endTitle{font-size:clamp(28px,6vw,48px)}
+#endRank{color:#ffd34e;font-size:75px;font-weight:1000}
+#endMessage{color:#d5d8e8}
+@media(max-width:600px){
+ #miniMap{width:115px;height:115px;top:85px}
+ #feed{top:210px;width:190px;font-size:10px}
+ #healthBox{width:145px}
+ #hud{font-size:11px}
+}
 </style>
 </head>
+
 <body>
 
 <div id="intro">
@@ -67,6 +84,8 @@ input,select{padding:10px;border-radius:6px;border:0;margin:7px;width:90%;max-wi
 </div>
 
 <div id="lobby" style="display:none">
+ <canvas id="lobby3d"></canvas>
+
  <div class="tag">SEASON 1 · SOLO</div>
  <h1>STORM<br>ISLAND</h1>
  <h3>ONLY THE BEST SURVIVE</h3>
@@ -86,6 +105,7 @@ input,select{padding:10px;border-radius:6px;border:0;margin:7px;width:90%;max-wi
   <button onclick="showQuests()">QUESTS</button>
   <button onclick="showLeaderboard()">LEADERBOARD</button>
   <button onclick="showSettings()">SETTINGS</button>
+  <button onclick="showRedeem()">REDEEM CODE</button>
  </div>
 
  <div class="panel" id="shop" style="display:none">
@@ -129,6 +149,16 @@ input,select{padding:10px;border-radius:6px;border:0;margin:7px;width:90%;max-wi
   <h2>LEADERBOARD</h2>
   <p>Saved on this device</p>
   <div id="scores"></div>
+  <button onclick="hidePanels()">BACK</button>
+ </div>
+
+ <div class="panel" id="redeemPanel" style="display:none">
+  <h2>REDEEM CODE</h2>
+  <p>Enter a code to unlock rewards!</p>
+  <input id="redeemInput" maxlength="30" placeholder="ENTER YOUR CODE">
+  <br>
+  <button onclick="redeemCode()">REDEEM</button>
+  <p id="redeemMessage"></p>
   <button onclick="hidePanels()">BACK</button>
  </div>
 
@@ -177,8 +207,18 @@ input,select{padding:10px;border-radius:6px;border:0;margin:7px;width:90%;max-wi
   <div id="mapDot"></div>
   <div id="mapHint">M = CLOSE MAP · ENEMIES NOT SHOWN</div>
  </div>
- <div id="help">WASD: MOVE · SPACE: JUMP · E: OPEN CHEST · LEFT CLICK: FIRE · M: MAP</div>
- <button id="exit" onclick="backToLobby()">EXIT</button>
+ <div id="help">WASD: MOVE · SPACE: JUMP · E: OPEN CHEST / FIND CODE · LEFT CLICK: FIRE · M: MAP</div>
+ <button id="exit">EXIT</button>
+</div>
+
+<div id="endScreen">
+ <div id="endContent">
+  <div id="endLogo">STORM ISLAND</div>
+  <h2 id="endTitle">STORM ROYALE</h2>
+  <div id="endRank">#1</div>
+  <p id="endMessage">YOU ARE THE LAST ONE STANDING!</p>
+  <button onclick="backToLobby()">RETURN TO LOBBY</button>
+ </div>
 </div>
 
 <script type="module">
@@ -205,10 +245,10 @@ const S={
 
 const RARITIES=[
  {name:'Common',color:0x343943,chance:30,damage:12,rate:.65},
- {name:'Uncommon',color:0xe8753d,chance:30,damage:16,rate:.58},
- {name:'Rare',color:0x16b8a6,chance:24,damage:21,rate:.50},
- {name:'Epic',color:0xe45b91,chance:15,damage:27,rate:.43},
- {name:'Legendary',color:0xf2d35c,chance:1,damage:34,rate:.38},
+ {name:'Uncommon',color:0x2ebd63,chance:30,damage:16,rate:.58},
+ {name:'Rare',color:0x287be8,chance:24,damage:21,rate:.50},
+ {name:'Epic',color:0x9b48dc,chance:15,damage:27,rate:.43},
+ {name:'Legendary',color:0xf2a43c,chance:1,damage:34,rate:.38},
  {name:'Mythic',color:0xffffff,chance:0,damage:45,rate:.30}
 ];
 
@@ -235,25 +275,87 @@ function num(key,def=0){
  return Number.isFinite(n)?n:def;
 }
 function arr(key,def=[]){
- try{const a=JSON.parse(localStorage.getItem(key)||'null');return Array.isArray(a)?a:def}
- catch{return def}
+ try{
+  const a=JSON.parse(localStorage.getItem(key)||'null');
+  return Array.isArray(a)?a:def;
+ }catch{return def}
 }
 function save(key,value){localStorage.setItem(key,JSON.stringify(value))}
-function getSC(){return num(S.sc)}
-function setSC(n){localStorage.setItem(S.sc,String(Math.max(0,n)));updateCurrency()}
-function addSC(n){setSC(getSC()+n)}
+
+// BigInt: very large crystal amounts remain exact.
+function getSC(){
+ try{return BigInt(localStorage.getItem(S.sc)||'0')}
+ catch{return 0n}
+}
+function setSC(n){
+ const amount=BigInt(n);
+ localStorage.setItem(S.sc,String(amount<0n?0n:amount));
+ updateCurrency();
+}
+function addSC(n){setSC(getSC()+BigInt(n))}
 function getXP(){return num(S.xp)}
 function setXP(n){localStorage.setItem(S.xp,String(Math.max(0,n)))}
 function getLevel(){return Math.min(MAX_LEVEL,1+Math.floor(getXP()/PASS_XP))}
 function getOwned(){return arr(S.owned,['blue'])}
 function getClaimed(){return arr(S.claimed,[])}
 function updateCurrency(){
- document.getElementById('lobbySC').textContent=getSC();
- document.getElementById('shopSC').textContent=getSC();
+ const amount=getSC().toString();
+ document.getElementById('lobbySC').textContent=amount;
+ document.getElementById('shopSC').textContent=amount;
 }
 function escapeHTML(s){
  return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 }
+
+// =====================================
+// REDEEM CODES
+// =====================================
+const REDEEM_CODES={
+ STORM2026:{crystals:'500',message:'500 STORM CRYSTALS UNLOCKED!'},
+ '06112013':{crystals:'999999999999999999',message:'OWNER REWARD UNLOCKED!'},
+ CAVE2026:{crystals:'150',message:'CAVE TREASURE FOUND!'},
+ RADAR777:{crystals:'200',message:'RADAR SECRET FOUND!'},
+ FROST2026:{crystals:'250',message:'FROST SECRET FOUND!'},
+ DOCKS2026:{crystals:'150',message:'DOCKS SECRET FOUND!'},
+ FOREST2026:{crystals:'150',message:'FOREST SECRET FOUND!'}
+};
+
+function showRedeem(){
+ panel('redeemPanel');
+ document.getElementById('redeemInput').value='';
+ document.getElementById('redeemMessage').textContent='';
+}
+
+function redeemCode(){
+ const input=document.getElementById('redeemInput');
+ const message=document.getElementById('redeemMessage');
+ const code=input.value.trim().toUpperCase();
+
+ if(!code){
+  message.textContent='ENTER A CODE FIRST!';
+  return;
+ }
+
+ const used=arr('stormUsedRedeemCodes',[]);
+ if(!REDEEM_CODES[code]){
+  message.textContent='INVALID CODE!';
+  return;
+ }
+ if(used.includes(code)){
+  message.textContent='CODE ALREADY REDEEMED!';
+  return;
+ }
+
+ addSC(BigInt(REDEEM_CODES[code].crystals));
+ used.push(code);
+ save('stormUsedRedeemCodes',used);
+
+ message.textContent='✓ '+REDEEM_CODES[code].message;
+ updateCurrency();
+ refreshShop();
+}
+window.showRedeem=showRedeem;
+window.redeemCode=redeemCode;
 
 // =====================================
 // STORM PASS
@@ -261,13 +363,16 @@ function escapeHTML(s){
 function passRewards(){
  const claimed=getClaimed();
  const level=getLevel();
+
  for(let tier=1;tier<=10;tier++){
   if(level<tier)continue;
   const freeKey='free'+tier;
+
   if(tier<=6&&!claimed.includes(freeKey)){
    addSC(100);
    claimed.push(freeKey);
   }
+
   if(localStorage.getItem(S.premium)==='true'){
    const premiumKey='premium'+tier;
    if(!claimed.includes(premiumKey)){
@@ -278,14 +383,19 @@ function passRewards(){
  }
  save(S.claimed,claimed);
 }
+
 function refreshPass(){
  passRewards();
  const level=getLevel();
  const xp=getXP();
+
  document.getElementById('passXP').textContent=xp;
  document.getElementById('passLevel').textContent=level;
- document.getElementById('passProgress').style.width=(level>=10?100:(xp%PASS_XP)/PASS_XP*100)+'%';
+ document.getElementById('passProgress').style.width=
+  (level>=10?100:(xp%PASS_XP)/PASS_XP*100)+'%';
+
  const premium=localStorage.getItem(S.premium)==='true';
+
  document.getElementById('premiumStatus').innerHTML=premium?
   '<p style="color:#d6a5ff"><b>STORM PASS + OWNED · SEASON 1</b></p>':
   '<p class="small">FREE PASS is always available. STORM PASS + costs 1,500 SC.</p>';
@@ -295,28 +405,40 @@ function refreshPass(){
   const unlocked=level>=i;
   const free=i<=6;
   const premiumClaimed=getClaimed().includes('premium'+i);
-  html+=`<div class="reward"><div><b>TIER ${i}</b><div class="small">${i*500} XP</div></div><div>FREE: ${free?'100 SC':'—'}<br>PLUS: ${premium?'100 SC':'🔒'} ${premium&&premiumClaimed?'✓':''}</div><b>${unlocked?'UNLOCKED':'LOCKED'}</b></div>`;
+
+  html+=`<div class="reward">
+   <div><b>TIER ${i}</b><div class="small">${i*500} XP</div></div>
+   <div>FREE: ${free?'100 SC':'—'}<br>PLUS: ${premium?'100 SC':'🔒'} ${premium&&premiumClaimed?'✓':''}</div>
+   <b>${unlocked?'UNLOCKED':'LOCKED'}</b>
+  </div>`;
  }
  document.getElementById('passRewards').innerHTML=html;
  updateCurrency();
 }
+
 function buyLevel(){
  if(getLevel()>=MAX_LEVEL){alert('MAX LEVEL REACHED!');return}
- if(getSC()<100){alert('Not enough Storm Crystals!');return}
- setSC(getSC()-100);
+ if(getSC()<100n){alert('Not enough Storm Crystals!');return}
+ setSC(getSC()-100n);
  setXP(getXP()+PASS_XP);
  refreshPass();
  refreshQuests();
 }
+
 function buyPremium(){
- if(localStorage.getItem(S.premium)==='true'){alert('You already own STORM PASS + for Season 1!');return}
- if(getSC()<1500){alert('You need 1,500 Storm Crystals!');return}
+ if(localStorage.getItem(S.premium)==='true'){
+  alert('You already own STORM PASS + for Season 1!');
+  return;
+ }
+ if(getSC()<1500n){alert('You need 1,500 Storm Crystals!');return}
  if(!confirm('Buy STORM PASS + for 1,500 Storm Crystals?'))return;
- setSC(getSC()-1500);
+
+ setSC(getSC()-1500n);
  localStorage.setItem(S.premium,'true');
  refreshPass();
  alert('STORM PASS + unlocked! Your premium rewards are saved.');
 }
+
 function addXP(n){setXP(getXP()+n);refreshPass()}
 
 // =====================================
@@ -328,55 +450,83 @@ function weekKey(){
  const first=new Date(d.getFullYear(),0,1);
  return d.getFullYear()+'-'+Math.ceil((((d-first)/86400000)+first.getDay()+1)/7);
 }
+
 function questData(){
  let d=arr(S.daily,[]);
  if(d[0]!==dayKey())d=[dayKey(),0,false];
+
  let w=arr(S.weekly,[]);
  if(w[0]!==weekKey())w=[weekKey(),0,false];
- save(S.daily,d);save(S.weekly,w);
+
+ save(S.daily,d);
+ save(S.weekly,w);
  return {d,w};
 }
+
 function getMilestones(){return arr(S.milestones,[])}
+
 function updateQuestProgress(type,amount=1){
  const {d,w}=questData();
+
  if(type==='elim'){
-  d[1]+=amount;w[1]+=amount;
+  d[1]+=amount;
+  w[1]+=amount;
   localStorage.setItem(S.elims,String(num(S.elims)+amount));
  }
  if(type==='chest')localStorage.setItem(S.chests,String(num(S.chests)+amount));
  if(type==='match')localStorage.setItem(S.matches,String(num(S.matches)+amount));
- save(S.daily,d);save(S.weekly,w);
+
+ save(S.daily,d);
+ save(S.weekly,w);
  checkQuests();
 }
+
 function completeQuest(key,rewardXP,rewardSC=0){
  const done=arr('stormCompletedQuests',[]);
  if(done.includes(key))return;
- done.push(key);save('stormCompletedQuests',done);
+
+ done.push(key);
+ save('stormCompletedQuests',done);
  addXP(rewardXP);
  if(rewardSC)addSC(rewardSC);
 }
+
 function checkQuests(){
  const {d,w}=questData();
+
  if(d[1]>=3)completeQuest('daily3',150);
  if(w[1]>=10)completeQuest('weekly10',500);
- const elims=num(S.elims),wins=num(S.wins),chests=num(S.chests);
+
+ const elims=num(S.elims);
+ const wins=num(S.wins);
+ const chests=num(S.chests);
+
  if(elims>=25)completeQuest('milestone25',400,25);
  if(elims>=100)completeQuest('milestone100',1000,75);
  if(wins>=10)completeQuest('milestoneWins',1000,100);
  if(chests>=50)completeQuest('milestoneChests',600,50);
+
  refreshQuests();
 }
+
 function questRow(title,progress,target,xp,sc=0){
  const done=progress>=target;
  return `<div class="reward"><div><b>${title}</b><div class="small">${Math.min(progress,target)} / ${target}</div></div><div>${done?'✓ COMPLETE':xp+' XP'+(sc?' + '+sc+' SC':'')}</div></div>`;
 }
+
 function refreshQuests(){
  const {d,w}=questData();
+
  document.getElementById('dailyQuests').innerHTML=
   questRow('Get 3 eliminations',d[1],3,150);
+
  document.getElementById('weeklyQuests').innerHTML=
   questRow('Get 10 eliminations',w[1],10,500);
- const elims=num(S.elims),wins=num(S.wins),chests=num(S.chests);
+
+ const elims=num(S.elims);
+ const wins=num(S.wins);
+ const chests=num(S.chests);
+
  document.getElementById('milestoneQuests').innerHTML=
   questRow('Eliminations I',elims,25,400,25)+
   questRow('Eliminations II',elims,100,1000,75)+
@@ -390,62 +540,200 @@ function refreshQuests(){
 function refreshSkinSelect(){
  const select=document.getElementById('skinSelect');
  const previous=localStorage.getItem(S.skin)||'blue';
+
  select.innerHTML='';
+
  getOwned().forEach(id=>{
   if(!SKINS[id])return;
   const o=document.createElement('option');
-  o.value=id;o.textContent=SKINS[id].name;
+  o.value=id;
+  o.textContent=SKINS[id].name;
   select.appendChild(o);
  });
+
  select.value=getOwned().includes(previous)?previous:'blue';
 }
+
 function refreshShop(){
  updateCurrency();
  const box=document.getElementById('shopItems');
  box.innerHTML='';
+
  Object.entries(SKINS).forEach(([id,s])=>{
   const owned=getOwned().includes(id);
   const card=document.createElement('div');
   card.className='card';
+
   card.innerHTML=`<div class="preview" style="background:#${s.color.toString(16).padStart(6,'0')}"></div><b>${s.name}</b><p>${s.price===0?'FREE':s.price+' SC'}</p>`;
+
   const b=document.createElement('button');
   b.textContent=owned?'OWNED':s.price===0?'FREE':'BUY';
-  b.disabled=owned||getSC()<s.price;
+  b.disabled=owned||getSC()<BigInt(s.price);
+
   b.onclick=()=>{
-   if(getSC()<s.price)return;
-   setSC(getSC()-s.price);
+   if(getSC()<BigInt(s.price))return;
+   setSC(getSC()-BigInt(s.price));
    save(S.owned,[...getOwned(),id]);
-   refreshShop();refreshSkinSelect();
+   refreshShop();
+   refreshSkinSelect();
   };
-  card.appendChild(b);box.appendChild(card);
+
+  card.appendChild(b);
+  box.appendChild(card);
  });
 }
+
 function hidePanels(){
- ['shop','stormPass','quests','settings','leaderboard'].forEach(id=>document.getElementById(id).style.display='none');
+ ['shop','stormPass','quests','settings','leaderboard','redeemPanel']
+ .forEach(id=>document.getElementById(id).style.display='none');
 }
-function panel(id){hidePanels();document.getElementById(id).style.display='block'}
+
+function panel(id){
+ hidePanels();
+ document.getElementById(id).style.display='block';
+}
+
 function showShop(){refreshShop();panel('shop')}
 function showPass(){refreshPass();panel('stormPass')}
 function showQuests(){refreshQuests();panel('quests')}
 function showSettings(){panel('settings')}
+
 function showLeaderboard(){
- const wins=num(S.wins),elims=num(S.elims);
+ const wins=num(S.wins);
+ const elims=num(S.elims);
+
  document.getElementById('scores').innerHTML=
- `<div class="reward">YOUR WINS <b>${wins}</b></div><div class="reward">YOUR ELIMINATIONS <b>${elims}</b></div><div class="reward">MATCHES PLAYED <b>${num(S.matches)}</b></div>`;
+ `<div class="reward">YOUR WINS <b>${wins}</b></div>
+ <div class="reward">YOUR ELIMINATIONS <b>${elims}</b></div>
+ <div class="reward">MATCHES PLAYED <b>${num(S.matches)}</b></div>`;
+
  panel('leaderboard');
 }
-window.showShop=showShop;window.showPass=showPass;window.showQuests=showQuests;
-window.showSettings=showSettings;window.showLeaderboard=showLeaderboard;window.hidePanels=hidePanels;
+
+window.showShop=showShop;
+window.showPass=showPass;
+window.showQuests=showQuests;
+window.showSettings=showSettings;
+window.showLeaderboard=showLeaderboard;
+window.hidePanels=hidePanels;
+
+// =====================================
+// 3D LOBBY
+// =====================================
+let lobbyRenderer,lobbyScene,lobbyCamera,lobbyCharacter;
+let lobbyAnimation;
+
+function initLobby3D(){
+ if(lobbyRenderer)return;
+
+ const canvas=document.getElementById('lobby3d');
+
+ lobbyScene=new THREE.Scene();
+ lobbyScene.background=new THREE.Color(0x172d50);
+
+ lobbyCamera=new THREE.PerspectiveCamera(55,innerWidth/innerHeight,.1,1000);
+ lobbyCamera.position.set(0,9,22);
+
+ lobbyRenderer=new THREE.WebGLRenderer({
+  canvas,
+  antialias:true,
+  alpha:true
+ });
+
+ lobbyRenderer.setPixelRatio(Math.min(devicePixelRatio,2));
+ lobbyRenderer.setSize(innerWidth,innerHeight);
+
+ lobbyScene.add(new THREE.HemisphereLight(0xb9eaff,0x27334c,2));
+
+ const sun=new THREE.DirectionalLight(0xffffff,2.5);
+ sun.position.set(10,20,10);
+ lobbyScene.add(sun);
+
+ const island=new THREE.Mesh(
+  new THREE.CylinderGeometry(13,10,3,48),
+  new THREE.MeshStandardMaterial({color:0x477e48})
+ );
+ island.position.y=-2;
+ lobbyScene.add(island);
+
+ const grass=new THREE.Mesh(
+  new THREE.CircleGeometry(13,48),
+  new THREE.MeshStandardMaterial({color:0x65a94d})
+ );
+ grass.rotation.x=-Math.PI/2;
+ grass.position.y=-.45;
+ lobbyScene.add(grass);
+
+ for(let i=0;i<9;i++){
+  const a=i*Math.PI*2/9;
+  const h=2+Math.random()*5;
+
+  const building=new THREE.Mesh(
+   new THREE.BoxGeometry(2.5,h,2.5),
+   new THREE.MeshStandardMaterial({color:i%2?0x52677c:0x687d91})
+  );
+
+  building.position.set(Math.cos(a)*8,h/2-.4,Math.sin(a)*8);
+  lobbyScene.add(building);
+ }
+
+ const platform=new THREE.Mesh(
+  new THREE.CylinderGeometry(2.8,3.2,.5,32),
+  new THREE.MeshStandardMaterial({color:0x5522a0,emissive:0x321066})
+ );
+ platform.position.y=.1;
+ lobbyScene.add(platform);
+
+ const skinId=localStorage.getItem(S.skin)||'blue';
+ lobbyCharacter=createCharacter(SKINS[skinId].color);
+ lobbyCharacter.position.set(0,.4,0);
+ lobbyScene.add(lobbyCharacter);
+
+ const ring=new THREE.Mesh(
+  new THREE.TorusGeometry(3.3,.09,8,64),
+  new THREE.MeshStandardMaterial({color:0x62dfff,emissive:0x2388ff})
+ );
+ ring.rotation.x=Math.PI/2;
+ ring.position.y=.5;
+ lobbyScene.add(ring);
+
+ function renderLobby(){
+  if(!lobbyRenderer)return;
+
+  lobbyAnimation=requestAnimationFrame(renderLobby);
+
+  const t=performance.now()*.0003;
+
+  lobbyCharacter.rotation.y=t*1.5;
+  lobbyCamera.position.x=Math.sin(t)*24;
+  lobbyCamera.position.z=Math.cos(t)*24;
+  lobbyCamera.lookAt(0,2,0);
+
+  ring.rotation.z=t;
+  lobbyRenderer.render(lobbyScene,lobbyCamera);
+ }
+
+ renderLobby();
+}
+
+function resizeLobby3D(){
+ if(!lobbyRenderer)return;
+ lobbyCamera.aspect=innerWidth/innerHeight;
+ lobbyCamera.updateProjectionMatrix();
+ lobbyRenderer.setSize(innerWidth,innerHeight);
+}
+window.addEventListener('resize',resizeLobby3D);
 
 // =====================================
 // THREE.JS GAME
 // =====================================
 let scene,camera,renderer,clock,player,airship;
-let bots=[],chests=[],keys={};
+let bots=[],chests=[],keys={},secretCodeItems=[];
 let yaw=0,pitch=0,started=false,jumped=false,mapOpen=false;
 let health=100,velocityY=0,canJump=true,weapon=null,lastShot=0;
-let kills=0,feedItems=[];
+let kills=0;
 const WORLD=300;
+
 const POIS=[
  ['STORM CITY',0,-105,0x8796a3],
  ['DUSTY DOCKS',155,90,0x8c7152],
@@ -456,16 +744,19 @@ const POIS=[
  ['IRONWORKS',-190,-120,0x806f62],
  ['CRYSTAL BAY',175,-20,0x488db5]
 ];
+
 const FIRST=[
  'Shadow','Storm','Pixel','Night','Frost','Nova','Dark','Golden','Swift','Crystal',
  'Mystic','Thunder','Silent','Wild','Cyber','Blaze','Echo','Lunar','Solar','Rogue',
  'Arctic','Rapid','Vortex','Lucky','Phantom','Iron','Neon','Cloud','Silver','Raven'
 ];
+
 const LAST=[
  'Wolf','Ninja','Rider','Hunter','Fox','Knight','Runner','Dragon','Falcon','Legend',
  'Master','Ghost','Tiger','Hawk','Storm','Blade','Spark','Viper','Ace','King',
- 'Wizard','Scout','Hero','Shadow','Pilot','Bear','Lion','Star','Reaper','Comet'
+ 'Wizard','Scout','Hero','Shadow','Pilot','Bear','Lion','Star','Comet'
 ];
+
 const randomName=()=>FIRST[Math.floor(Math.random()*FIRST.length)]+LAST[Math.floor(Math.random()*LAST.length)]+Math.floor(Math.random()*90+10);
 const rand=(a,b)=>a+Math.random()*(b-a);
 
@@ -477,208 +768,444 @@ function addFeed(killer,victim,boss=false){
  feed.prepend(row);
  while(feed.children.length>5)feed.lastChild.remove();
 }
+
 function rarityRoll(boss=false){
  if(boss)return RARITIES[5];
+
  const r=Math.random()*100;
  let total=0;
+
  for(let i=0;i<5;i++){
   total+=RARITIES[i].chance;
   if(r<total)return RARITIES[i];
  }
+
  return RARITIES[0];
 }
+
 function makeWeapon(boss=false){
  const rarity=rarityRoll(boss);
- return {name:WEAPONS[Math.floor(Math.random()*WEAPONS.length)],rarity,ammo:boss?80:50};
+ return {
+  name:WEAPONS[Math.floor(Math.random()*WEAPONS.length)],
+  rarity,
+  ammo:boss?80:50
+ };
 }
+
 function updateWeaponHUD(){
  document.getElementById('weaponHUD').textContent=weapon?
- weapon.rarity.name+' · '+weapon.name+' · '+weapon.ammo+' ENERGY':'NO WEAPON · FIND A CHEST';
- document.getElementById('weaponHUD').style.border='2px solid '+(weapon?'#'+weapon.rarity.color.toString(16).padStart(6,'0'):'#777');
+ weapon.rarity.name+' · '+weapon.name+' · '+weapon.ammo+' ENERGY':
+ 'NO WEAPON · FIND A CHEST';
+
+ document.getElementById('weaponHUD').style.border=
+ '2px solid '+(weapon?'#'+weapon.rarity.color.toString(16).padStart(6,'0'):'#777');
 }
 
 function addLight(){
  scene.add(new THREE.HemisphereLight(0xffffff,0x536b3b,2));
  const sun=new THREE.DirectionalLight(0xffffff,2);
- sun.position.set(100,180,80);sun.castShadow=true;scene.add(sun);
+ sun.position.set(100,180,80);
+ sun.castShadow=true;
+ scene.add(sun);
 }
-function mat(color,roughness=.85){return new THREE.MeshStandardMaterial({color,roughness})}
+
+function mat(color,roughness=.85){
+ return new THREE.MeshStandardMaterial({color,roughness});
+}
+
 function box(w,h,d,color,x,y,z){
  const m=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),mat(color));
- m.position.set(x,y,z);m.castShadow=true;m.receiveShadow=true;scene.add(m);return m;
+ m.position.set(x,y,z);
+ m.castShadow=true;
+ m.receiveShadow=true;
+ scene.add(m);
+ return m;
 }
+
 function createTree(x,z){
  const trunk=new THREE.Mesh(new THREE.CylinderGeometry(.6,.8,5,7),mat(0x79502c));
- trunk.position.set(x,2.5,z);scene.add(trunk);
+ trunk.position.set(x,2.5,z);
+ scene.add(trunk);
+
  const leaves=new THREE.Mesh(new THREE.ConeGeometry(3.3,8,8),mat(0x176b35));
- leaves.position.set(x,8,z);scene.add(leaves);
+ leaves.position.set(x,8,z);
+ scene.add(leaves);
 }
+
 function createRoad(x1,z1,x2,z2,width=5){
  const dx=x2-x1,dz=z2-z1,len=Math.hypot(dx,dz);
  const road=new THREE.Mesh(new THREE.BoxGeometry(width,.15,len),mat(0x555b5e));
  road.position.set((x1+x2)/2,.12,(z1+z2)/2);
- road.rotation.y=Math.atan2(dx,dz);scene.add(road);
+ road.rotation.y=Math.atan2(dx,dz);
+ scene.add(road);
 }
+
 function createBuilding(x,z,color=0x89939a,size=1){
  const g=new THREE.Group();
- const w=rand(8,15)*size,d=rand(8,15)*size,h=rand(7,20)*size;
+ const w=rand(8,15)*size;
+ const d=rand(8,15)*size;
+ const h=rand(7,20)*size;
+
  const body=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),mat(color));
- body.position.y=h/2;g.add(body);
+ body.position.y=h/2;
+ g.add(body);
+
  const roof=new THREE.Mesh(new THREE.BoxGeometry(w+.5,.7,d+.5),mat(0x454d56));
- roof.position.y=h+.3;g.add(roof);
- const windowMat=new THREE.MeshStandardMaterial({color:0x8ddcff,emissive:0x21445b});
+ roof.position.y=h+.3;
+ g.add(roof);
+
+ const windowMat=new THREE.MeshStandardMaterial({
+  color:0x8ddcff,
+  emissive:0x21445b
+ });
+
  for(let y=2;y<h-1;y+=3){
   for(let side of [-1,1]){
    const win=new THREE.Mesh(new THREE.BoxGeometry(1.5,1.5,.12),windowMat);
-   win.position.set(side*(w/2+.07),y,0);g.add(win);
+   win.position.set(side*(w/2+.07),y,0);
+   g.add(win);
   }
  }
- g.position.set(x,0,z);scene.add(g);return g;
+
+ g.position.set(x,0,z);
+ scene.add(g);
+ return g;
 }
+
 function createPOI(name,x,z,color){
  const group=new THREE.Group();
  const count=name==='STORM CITY'?18:name==='DUSTY DOCKS'?12:8;
+
  for(let i=0;i<count;i++){
   const a=i*Math.PI*2/count;
   const r=rand(8,24);
-  const px=Math.cos(a)*r,pz=Math.sin(a)*r;
+  const px=Math.cos(a)*r;
+  const pz=Math.sin(a)*r;
   const b=createBuilding(x+px,z+pz,color,name==='STORM CITY'?1.25:1);
   group.add(b);
  }
- // Local landmark
+
  if(name==='STORM CITY'){
-  const tower=box(8,45,8,color,x,22.5,z);
-  const light= new THREE.PointLight(0x55caff,2,50);
-  light.position.set(x,45,z);scene.add(light);
+  box(8,45,8,color,x,22.5,z);
+  const light=new THREE.PointLight(0x55caff,2,50);
+  light.position.set(x,45,z);
+  scene.add(light);
  }
+
  if(name==='DUSTY DOCKS'){
-  for(let i=0;i<8;i++)box(9,3,5,[0xc64c36,0x3e80ba,0xd5aa44][i%3],x+rand(-20,20),1.5,z+rand(-20,20));
+  for(let i=0;i<8;i++){
+   box(9,3,5,[0xc64c36,0x3e80ba,0xd5aa44][i%3],x+rand(-20,20),1.5,z+rand(-20,20));
+  }
  }
+
  if(name==='FROST PEAK'){
   const mountain=new THREE.Mesh(new THREE.ConeGeometry(35,55,7),mat(0x8da8b7));
-  mountain.position.set(x,24,z);scene.add(mountain);
+  mountain.position.set(x,24,z);
+  scene.add(mountain);
+
   const snow=new THREE.Mesh(new THREE.ConeGeometry(13,22,7),mat(0xe8f5ff));
-  snow.position.set(x,40,z);scene.add(snow);
+  snow.position.set(x,40,z);
+  scene.add(snow);
  }
 }
+
 function createIsland(){
  scene.background=new THREE.Color(0x8bd5ed);
  scene.fog=new THREE.Fog(0x8bd5ed,220,650);
+
  const water=new THREE.Mesh(new THREE.CircleGeometry(500,80),mat(0x167db5));
- water.rotation.x=-Math.PI/2;water.position.y=-8;scene.add(water);
+ water.rotation.x=-Math.PI/2;
+ water.position.y=-8;
+ scene.add(water);
+
  const land=new THREE.Mesh(new THREE.CylinderGeometry(WORLD,WORLD+10,9,96),mat(0x4c9148));
- land.position.y=-4;land.receiveShadow=true;scene.add(land);
+ land.position.y=-4;
+ land.receiveShadow=true;
+ scene.add(land);
+
  const grass=new THREE.Mesh(new THREE.CircleGeometry(WORLD,96),mat(0x65a94d));
- grass.rotation.x=-Math.PI/2;grass.position.y=.6;scene.add(grass);
- // Beach rim
+ grass.rotation.x=-Math.PI/2;
+ grass.position.y=.6;
+ scene.add(grass);
+
  const beach=new THREE.Mesh(new THREE.RingGeometry(WORLD-14,WORLD,96),mat(0xd4c18b));
- beach.rotation.x=-Math.PI/2;beach.position.y=.65;scene.add(beach);
+ beach.rotation.x=-Math.PI/2;
+ beach.position.y=.65;
+ scene.add(beach);
+
  POIS.forEach(p=>createPOI(...p));
+
  for(let i=0;i<350;i++){
-  const a=Math.random()*Math.PI*2,r=rand(30,WORLD-20);
-  const x=Math.cos(a)*r,z=Math.sin(a)*r;
+  const a=Math.random()*Math.PI*2;
+  const r=rand(30,WORLD-20);
+  const x=Math.cos(a)*r;
+  const z=Math.sin(a)*r;
+
   if(POIS.some(p=>Math.hypot(x-p[1],z-p[2])<32))continue;
   createTree(x,z);
  }
- // Roads between towns
+
  createRoad(0,-105,-105,-30,6);
  createRoad(0,-105,125,-120,6);
  createRoad(-105,-30,-190,-120,5);
  createRoad(0,-105,20,185,5);
  createRoad(20,185,155,90,5);
 }
+
 function createBus(){
  const g=new THREE.Group();
+
  const body=new THREE.Mesh(new THREE.BoxGeometry(10,3,5),mat(0x7027bf));
- body.position.y=0;g.add(body);
+ body.position.y=0;
+ g.add(body);
+
  const balloon=new THREE.Mesh(new THREE.SphereGeometry(4,18,14),mat(0x7928d8));
- balloon.position.y=8;g.add(balloon);
+ balloon.position.y=8;
+ g.add(balloon);
+
  for(let x of [-3,3])for(let z of [-1.5,1.5]){
   const rope=new THREE.Mesh(new THREE.CylinderGeometry(.08,.08,5,6),mat(0x222222));
-  rope.position.set(x,5,z);g.add(rope);
+  rope.position.set(x,5,z);
+  g.add(rope);
  }
- const label=new THREE.Mesh(new THREE.PlaneGeometry(8,1.3),new THREE.MeshBasicMaterial({color:0x12091b}));
- label.position.set(0,0,2.55);g.add(label);
+
  return g;
 }
+
 function createCharacter(color,boss=false){
  const g=new THREE.Group();
+
  const body=new THREE.Mesh(new THREE.CapsuleGeometry(.7,1.1,4,8),mat(color));
- body.position.y=1.1;g.add(body);
+ body.position.y=1.1;
+ g.add(body);
+
  const head=new THREE.Mesh(new THREE.SphereGeometry(.43,12,12),mat(0xffc99b));
- head.position.y=2.35;g.add(head);
+ head.position.y=2.35;
+ g.add(head);
+
  const backpack=new THREE.Mesh(new THREE.BoxGeometry(.8,1,.35),mat(boss?0xf2d35c:0x333d4a));
- backpack.position.set(0,1.25,-.65);g.add(backpack);
+ backpack.position.set(0,1.25,-.65);
+ g.add(backpack);
+
  if(boss){
   const crown=new THREE.Mesh(new THREE.ConeGeometry(.55,.8,5),mat(0xffd84b));
-  crown.position.y=3;g.add(crown);
+  crown.position.y=3;
+  g.add(crown);
  }
+
  return g;
 }
+
 function createBot(i){
  const boss=(i%20===0);
  const colors=[0xe34b42,0x8c48d9,0xe5a52d,0x35a7a0,0x527caa,0x8b9b4b];
+
  const bot=createCharacter(boss?0x9d263c:colors[i%colors.length],boss);
- const a=Math.random()*Math.PI*2,r=rand(40,WORLD-35);
+ const a=Math.random()*Math.PI*2;
+ const r=rand(40,WORLD-35);
+
  bot.position.set(Math.cos(a)*r,0,Math.sin(a)*r);
+
  bot.userData={
-  name:randomName(),boss,health:boss?220:100,maxHealth:boss?220:100,
-  weapon:null,cooldown:rand(1,4),think:0,target:null,lootTarget:null,
-  speed:boss?5.5:rand(5,8),wander:Math.random()*6
+  name:randomName(),
+  boss,
+  health:boss?220:100,
+  maxHealth:boss?220:100,
+  weapon:null,
+  cooldown:rand(1,4),
+  think:0,
+  target:null,
+  lootTarget:null,
+  speed:boss?5.5:rand(5,8),
+  wander:Math.random()*6
  };
+
  return bot;
 }
+
 function createChest(x,z){
  const g=new THREE.Group();
+
  const base=new THREE.Mesh(new THREE.BoxGeometry(3,1.5,2),mat(0x875329));
- base.position.y=.8;g.add(base);
+ base.position.y=.8;
+ g.add(base);
+
  const lid=new THREE.Mesh(new THREE.BoxGeometry(3.1,.65,2.1),mat(0xc58b39));
- lid.position.y=1.8;g.add(lid);
+ lid.position.y=1.8;
+ g.add(lid);
+
  const trim=new THREE.Mesh(new THREE.BoxGeometry(3.2,.18,2.2),mat(0xf3cb66));
- trim.position.y=1.3;g.add(trim);
+ trim.position.y=1.3;
+ g.add(trim);
+
  const glow=new THREE.PointLight(0xffc85a,1.4,10);
- glow.position.y=2;g.add(glow);
- g.position.set(x,0,z);scene.add(g);
+ glow.position.y=2;
+ g.add(glow);
+
+ g.position.set(x,0,z);
+ scene.add(g);
+
  g.userData={opened:false,lid,glow};
  chests.push(g);
 }
+
+// =====================================
+// HIDDEN ISLAND CODES
+// =====================================
+function createHiddenCode(code,x,z){
+ const found=arr('stormFoundIslandCodes',[]);
+ if(found.includes(code))return;
+
+ const group=new THREE.Group();
+
+ const crystal=new THREE.Mesh(
+  new THREE.OctahedronGeometry(1.1),
+  new THREE.MeshStandardMaterial({
+   color:0xb34cff,
+   emissive:0x8b25ff,
+   emissiveIntensity:2
+  })
+ );
+ crystal.position.y=1.5;
+ group.add(crystal);
+
+ const ring=new THREE.Mesh(
+  new THREE.TorusGeometry(1.5,.08,8,32),
+  new THREE.MeshStandardMaterial({color:0x58eaff,emissive:0x1688ff})
+ );
+ ring.rotation.x=Math.PI/2;
+ ring.position.y=.4;
+ group.add(ring);
+
+ const light=new THREE.PointLight(0x9c42ff,2,15);
+ light.position.y=2;
+ group.add(light);
+
+ group.position.set(x,0,z);
+ group.userData.code=code;
+
+ scene.add(group);
+ secretCodeItems.push(group);
+}
+
+function createIslandCodes(){
+ secretCodeItems=[];
+
+ createHiddenCode('CAVE2026',-230,30);
+ createHiddenCode('RADAR777',125,-120);
+ createHiddenCode('FROST2026',20,185);
+ createHiddenCode('DOCKS2026',155,90);
+ createHiddenCode('FOREST2026',-150,100);
+}
+
+function discoverIslandCode(){
+ let nearest=null;
+ let best=8;
+
+ for(const item of secretCodeItems){
+  if(!item.visible)continue;
+  const d=player.position.distanceTo(item.position);
+  if(d<best){
+   best=d;
+   nearest=item;
+  }
+ }
+
+ if(!nearest)return false;
+
+ const code=nearest.userData.code;
+ const found=arr('stormFoundIslandCodes',[]);
+
+ found.push(code);
+ save('stormFoundIslandCodes',found);
+ nearest.visible=false;
+
+ const box=document.getElementById('interaction');
+ box.textContent='SECRET CODE FOUND: '+code;
+ box.style.display='block';
+
+ setTimeout(()=>box.style.display='none',3500);
+ return true;
+}
+
+// =====================================
+// INITIALIZE GAME
+// =====================================
 function init(){
- clock=new THREE.Clock();scene=new THREE.Scene();
+ clock=new THREE.Clock();
+ scene=new THREE.Scene();
+
  camera=new THREE.PerspectiveCamera(75,innerWidth/innerHeight,.1,900);
+
  renderer=new THREE.WebGLRenderer({antialias:true});
  renderer.setSize(innerWidth,innerHeight);
  renderer.setPixelRatio(Math.min(devicePixelRatio,2));
  renderer.shadowMap.enabled=true;
- document.getElementById('game').insertBefore(renderer.domElement,document.getElementById('game').firstChild);
- addLight();createIsland();
 
- player=createCharacter(SKINS[localStorage.getItem(S.skin)||'blue'].color);
+ document.getElementById('game').insertBefore(
+  renderer.domElement,
+  document.getElementById('game').firstChild
+ );
+
+ addLight();
+ createIsland();
+
+ const skinId=localStorage.getItem(S.skin)||'blue';
+ player=createCharacter(SKINS[skinId].color);
  scene.add(player);
- player.position.set(0,28,220);
- airship=createBus();airship.position.set(0,35,220);scene.add(airship);
 
- bots=[];chests=[];feedItems=[];kills=0;weapon=null;
+ player.position.set(0,28,220);
+
+ airship=createBus();
+ airship.position.set(0,35,220);
+ scene.add(airship);
+
+ bots=[];
+ chests=[];
+ secretCodeItems=[];
+ kills=0;
+ weapon=null;
+
  for(let i=0;i<24;i++){
-  const a=i*Math.PI*2/24,r=rand(35,WORLD-35);
+  const a=i*Math.PI*2/24;
+  const r=rand(35,WORLD-35);
   createChest(Math.cos(a)*r,Math.sin(a)*r);
  }
+
+ createIslandCodes();
+
  for(let i=0;i<99;i++){
-  const b=createBot(i);scene.add(b);bots.push(b);
+  const b=createBot(i);
+  scene.add(b);
+  bots.push(b);
  }
+
  document.getElementById('botsLeft').textContent='100';
  document.getElementById('killsText').textContent='ELIMS: 0';
  document.getElementById('feed').innerHTML='';
  document.getElementById('phaseText').textContent='ON THE BUS';
- health=100;jumped=false;velocityY=0;canJump=true;
- yaw=0;pitch=0;keys={};mapOpen=false;
- updateHealth();updateWeaponHUD();
+
+ health=100;
+ jumped=false;
+ velocityY=0;
+ canJump=true;
+ yaw=0;
+ pitch=0;
+ keys={};
+ mapOpen=false;
+
+ updateHealth();
+ updateWeaponHUD();
+
  document.getElementById('mapPanel').style.display='none';
  document.getElementById('interaction').style.display='none';
+
  renderer.domElement.addEventListener('click',canvasClick);
  window.addEventListener('keydown',keyDown);
  window.addEventListener('keyup',keyUp);
  document.addEventListener('mousemove',mouseMove);
  window.addEventListener('resize',resize);
+
  renderer.domElement.requestPointerLock();
  animate();
 }
@@ -688,15 +1215,25 @@ function init(){
 // =====================================
 function keyDown(e){
  keys[e.code]=true;
+
  if(e.code==='Space'){
   e.preventDefault();
   if(!jumped)jumpFromBus();
-  else if(canJump){velocityY=9;canJump=false}
+  else if(canJump){
+   velocityY=9;
+   canJump=false;
+  }
  }
- if(e.code==='KeyE'&&started&&jumped)openNearbyChest();
+
+ if(e.code==='KeyE'&&started&&jumped){
+  if(!discoverIslandCode())openNearbyChest();
+ }
+
  if(e.code==='KeyM'&&started)toggleMap();
 }
+
 function keyUp(e){keys[e.code]=false}
+
 function mouseMove(e){
  if(document.pointerLockElement===renderer?.domElement){
   const s=Number(document.getElementById('sensitivity').value)*.00025;
@@ -704,21 +1241,27 @@ function mouseMove(e){
   pitch=Math.max(-.75,Math.min(.75,pitch-e.movementY*s));
  }
 }
+
 function canvasClick(){
  if(document.pointerLockElement!==renderer.domElement){
-  renderer.domElement.requestPointerLock();return;
+  renderer.domElement.requestPointerLock();
+  return;
  }
  if(jumped)shoot();
 }
+
 function jumpFromBus(){
- if(jumped)return;jumped=true;
+ if(jumped)return;
+ jumped=true;
  player.position.copy(airship.position);
  velocityY=-3;
  document.getElementById('phaseText').textContent='LANDING';
 }
+
 function toggleMap(){
  mapOpen=!mapOpen;
  document.getElementById('mapPanel').style.display=mapOpen?'block':'none';
+
  if(mapOpen)document.exitPointerLock();
  else renderer.domElement.requestPointerLock();
 }
@@ -727,33 +1270,57 @@ function toggleMap(){
 // CHESTS AND WEAPONS
 // =====================================
 function openNearbyChest(){
- let nearest=null,best=8;
+ let nearest=null;
+ let best=8;
+
  chests.forEach(c=>{
   if(c.userData.opened)return;
   const d=player.position.distanceTo(c.position);
-  if(d<best){best=d;nearest=c}
+  if(d<best){
+   best=d;
+   nearest=c;
+  }
  });
- if(!nearest){document.getElementById('interaction').textContent='NO CHEST NEARBY';return}
+
+ if(!nearest){
+  document.getElementById('interaction').textContent='NO CHEST NEARBY';
+  document.getElementById('interaction').style.display='block';
+  setTimeout(()=>document.getElementById('interaction').style.display='none',1000);
+  return;
+ }
+
  nearest.userData.opened=true;
  nearest.userData.lid.rotation.x=-1.1;
  nearest.userData.glow.intensity=0;
+
  const w=makeWeapon(false);
- weapon=w;updateWeaponHUD();
+ weapon=w;
+ updateWeaponHUD();
  addXP(20);
+
  localStorage.setItem(S.chests,String(num(S.chests)+1));
  checkQuests();
- const rarity=w.rarity;
- document.getElementById('interaction').textContent='FOUND '+rarity.name.toUpperCase()+' · '+w.name;
+
+ document.getElementById('interaction').textContent=
+  'FOUND '+w.rarity.name.toUpperCase()+' · '+w.name;
+
  document.getElementById('interaction').style.display='block';
  setTimeout(()=>document.getElementById('interaction').style.display='none',1800);
 }
+
 function openBotChest(bot){
- let nearest=null,best=18;
+ let nearest=null;
+ let best=18;
+
  chests.forEach(c=>{
   if(c.userData.opened)return;
   const d=bot.position.distanceTo(c.position);
-  if(d<best){best=d;nearest=c}
+  if(d<best){
+   best=d;
+   nearest=c;
+  }
  });
+
  if(nearest){
   nearest.userData.opened=true;
   nearest.userData.lid.rotation.x=-1.1;
@@ -768,87 +1335,137 @@ function openBotChest(bot){
 function updatePlayersLeft(){
  document.getElementById('botsLeft').textContent=bots.length+(health>0?1:0);
 }
+
 function removeBot(bot,killer){
  if(!bots.includes(bot))return;
+
  const boss=bot.userData.boss;
  addFeed(killer,bot.userData.name,boss);
- scene.remove(bot);bots=bots.filter(b=>b!==bot);
+
+ scene.remove(bot);
+ bots=bots.filter(b=>b!==bot);
  updatePlayersLeft();
+
  if(killer==='YOU'){
   kills++;
   document.getElementById('killsText').textContent='ELIMS: '+kills;
+
   localStorage.setItem(S.elims,String(num(S.elims)+1));
   addXP(boss?250:100);
   updateQuestProgress('elim');
+
   if(boss){
-   weapon=makeWeapon(true);updateWeaponHUD();
+   weapon=makeWeapon(true);
+   updateWeaponHUD();
    addFeed('SYSTEM','MYTHIC DROP',true);
    addSC(10);
   }
  }
+
  if(bots.length===0&&started)winGame();
 }
+
 function damageBot(bot,amount,killer){
  if(!bots.includes(bot))return;
  bot.userData.health-=amount;
  if(bot.userData.health<=0)removeBot(bot,killer);
 }
+
 function damagePlayer(amount,killer){
  if(!started)return;
- health=Math.max(0,health-amount);updateHealth();
+
+ health=Math.max(0,health-amount);
+ updateHealth();
+
  const flash=document.getElementById('damageFlash');
- flash.style.opacity='1';setTimeout(()=>flash.style.opacity='0',130);
+ flash.style.opacity='1';
+ setTimeout(()=>flash.style.opacity='0',130);
+
  if(health<=0)loseGame(killer);
 }
+
 function updateHealth(){
  document.getElementById('healthText').textContent='HEALTH: '+health;
  document.getElementById('healthFill').style.width=health+'%';
- document.getElementById('healthFill').style.background=health>60?'#38dc62':health>30?'#ffb52e':'#ff3939';
+
+ document.getElementById('healthFill').style.background=
+  health>60?'#38dc62':health>30?'#ffb52e':'#ff3939';
 }
 
 // =====================================
 // PLAYER FIRING
 // =====================================
 function shoot(){
- if(!weapon){document.getElementById('interaction').textContent='FIND A CHEST FIRST!';document.getElementById('interaction').style.display='block';setTimeout(()=>document.getElementById('interaction').style.display='none',1000);return}
+ if(!weapon){
+  document.getElementById('interaction').textContent='FIND A CHEST FIRST!';
+  document.getElementById('interaction').style.display='block';
+  setTimeout(()=>document.getElementById('interaction').style.display='none',1000);
+  return;
+ }
+
  const now=performance.now();
  if(now-lastShot<weapon.rarity.rate*1000||weapon.ammo<=0)return;
- lastShot=now;weapon.ammo--;updateWeaponHUD();
- const dir=new THREE.Vector3();camera.getWorldDirection(dir);
+
+ lastShot=now;
+ weapon.ammo--;
+ updateWeaponHUD();
+
+ const dir=new THREE.Vector3();
+ camera.getWorldDirection(dir);
+
  const ray=new THREE.Raycaster(camera.position.clone(),dir,0,110);
  const parts=[];
+
  bots.forEach(b=>b.children.forEach(p=>parts.push(p)));
+
  const hits=ray.intersectObjects(parts,false);
+
  if(hits.length){
   const target=bots.find(b=>b.children.includes(hits[0].object));
   if(target)damageBot(target,weapon.rarity.damage,'YOU');
  }
- // Decorative, non-realistic energy flash.
- const orb=new THREE.Mesh(new THREE.SphereGeometry(.13,8,8),new THREE.MeshBasicMaterial({color:weapon.rarity.color}));
+
+ const orb=new THREE.Mesh(
+  new THREE.SphereGeometry(.13,8,8),
+  new THREE.MeshBasicMaterial({color:weapon.rarity.color})
+ );
+
  orb.position.copy(camera.position).addScaledVector(dir,2);
- scene.add(orb);setTimeout(()=>scene.remove(orb),100);
+ scene.add(orb);
+ setTimeout(()=>scene.remove(orb),100);
 }
 
 // =====================================
-// BOT AI: LOOT, FIGHT, ELIMINATE
+// BOT AI
 // =====================================
 function updateBots(dt){
  if(!jumped)return;
+
  for(const bot of [...bots]){
   if(!bots.includes(bot))continue;
+
   const data=bot.userData;
-  data.cooldown-=dt;data.think-=dt;
+  data.cooldown-=dt;
+  data.think-=dt;
+
   if(!data.weapon){
    if(data.think<=0){
     data.think=1.5;
-    let chest=null,best=100;
+    let chest=null;
+    let best=100;
+
     chests.forEach(c=>{
      if(c.userData.opened)return;
      const d=bot.position.distanceTo(c.position);
-     if(d<best){best=d;chest=c}
+     if(d<best){
+      best=d;
+      chest=c;
+     }
     });
+
     data.lootTarget=chest;
    }
+
    if(data.lootTarget&&!data.lootTarget.userData.opened){
     moveBot(bot,data.lootTarget.position,dt);
     if(bot.position.distanceTo(data.lootTarget.position)<3)openBotChest(bot);
@@ -860,42 +1477,61 @@ function updateBots(dt){
 
   let target=player;
   let closest=bot.position.distanceTo(player.position);
+
   for(const other of bots){
    if(other===bot)continue;
    const d=bot.position.distanceTo(other.position);
-   if(d<closest&&d<85){closest=d;target=other}
+
+   if(d<closest&&d<85){
+    closest=d;
+    target=other;
+   }
   }
 
   if(closest>35){
    if(target===player&&Math.random()<.25)wanderBot(bot,dt);
    else moveBot(bot,target.position,dt);
   }else{
-   bot.rotation.y=Math.atan2(target.position.x-bot.position.x,target.position.z-bot.position.z);
+   bot.rotation.y=Math.atan2(
+    target.position.x-bot.position.x,
+    target.position.z-bot.position.z
+   );
+
    if(data.cooldown<=0){
     data.cooldown=rand(1.1,2.1);
+
     if(target===player)damagePlayer(data.weapon.rarity.damage*.18,data.name);
     else damageBot(target,data.weapon.rarity.damage*.45,data.name);
    }
   }
  }
 }
+
 function moveBot(bot,target,dt){
- const dx=target.x-bot.position.x,dz=target.z-bot.position.z;
+ const dx=target.x-bot.position.x;
+ const dz=target.z-bot.position.z;
  const d=Math.hypot(dx,dz);
+
  if(d>2){
   bot.position.x+=dx/d*bot.userData.speed*dt;
   bot.position.z+=dz/d*bot.userData.speed*dt;
   bot.rotation.y=Math.atan2(dx,dz);
  }
 }
+
 function wanderBot(bot,dt){
  bot.userData.wander-=dt;
+
  if(bot.userData.wander<=0){
   bot.userData.wander=rand(2,6);
   bot.userData.wanderX=rand(-WORLD+30,WORLD-30);
   bot.userData.wanderZ=rand(-WORLD+30,WORLD-30);
  }
- moveBot(bot,{x:bot.userData.wanderX||bot.position.x,z:bot.userData.wanderZ||bot.position.z},dt);
+
+ moveBot(bot,{
+  x:bot.userData.wanderX||bot.position.x,
+  z:bot.userData.wanderZ||bot.position.z
+ },dt);
 }
 
 // =====================================
@@ -904,9 +1540,13 @@ function wanderBot(bot,dt){
 function updateMap(){
  const x=50+player.position.x/WORLD*42;
  const z=50+player.position.z/WORLD*42;
- const px=Math.max(8,Math.min(92,x)),pz=Math.max(8,Math.min(92,z));
+
+ const px=Math.max(8,Math.min(92,x));
+ const pz=Math.max(8,Math.min(92,z));
+
  document.getElementById('mapDot').style.left=px+'%';
  document.getElementById('mapDot').style.top=pz+'%';
+
  document.getElementById('miniPlayer').style.left=px+'%';
  document.getElementById('miniPlayer').style.top=pz+'%';
 }
@@ -914,22 +1554,46 @@ function updateMap(){
 // =====================================
 // MATCH END
 // =====================================
+function showEndScreen(won,killer='THE ISLAND'){
+ if(!started)return;
+
+ started=false;
+ document.exitPointerLock();
+
+ const screen=document.getElementById('endScreen');
+ const title=document.getElementById('endTitle');
+ const rank=document.getElementById('endRank');
+ const message=document.getElementById('endMessage');
+
+ screen.style.display='flex';
+
+ if(won){
+  title.textContent='STORM ROYALE!';
+  rank.textContent='#1';
+  message.textContent='YOU ARE THE LAST ONE STANDING!';
+ }else{
+  title.textContent='GAME OVER';
+  rank.textContent='';
+  message.textContent='YOU WERE ELIMINATED BY '+killer+'!';
+ }
+}
+
 function winGame(){
  if(!started)return;
- started=false;document.exitPointerLock();
+
  localStorage.setItem(S.wins,String(num(S.wins)+1));
  updateQuestProgress('match');
  addXP(300);
  checkQuests();
- alert('VICTORY ROYALE! You won the match!');
- backToLobby();
+
+ showEndScreen(true);
 }
+
 function loseGame(killer){
  if(!started)return;
- started=false;document.exitPointerLock();
+
  updateQuestProgress('match');
- alert('YOU WERE ELIMINATED BY '+(killer||'THE ISLAND')+'!\\nYour earned rewards are saved.');
- backToLobby();
+ showEndScreen(false,killer);
 }
 
 // =====================================
@@ -937,6 +1601,7 @@ function loseGame(killer){
 // =====================================
 function animate(){
  if(!started)return;
+
  requestAnimationFrame(animate);
  const dt=Math.min(clock.getDelta(),.04);
 
@@ -945,23 +1610,40 @@ function animate(){
   airship.position.z-=dt*2;
   player.position.copy(airship.position);
   player.position.y+=2;
+
   document.getElementById('phaseText').textContent='PRESS SPACE TO JUMP';
  }else{
   const forward=new THREE.Vector3(-Math.sin(yaw),0,-Math.cos(yaw));
   const right=new THREE.Vector3(Math.cos(yaw),0,-Math.sin(yaw));
   const move=new THREE.Vector3();
+
   if(keys.KeyW||keys.ArrowUp)move.add(forward);
   if(keys.KeyS||keys.ArrowDown)move.sub(forward);
   if(keys.KeyD||keys.ArrowRight)move.add(right);
   if(keys.KeyA||keys.ArrowLeft)move.sub(right);
+
   if(move.length()>0){
-   move.normalize();player.position.addScaledVector(move,17*dt);
+   move.normalize();
+   player.position.addScaledVector(move,17*dt);
    player.rotation.y=Math.atan2(-move.z,move.x)-Math.PI/2;
   }
-  velocityY-=22*dt;player.position.y+=velocityY*dt;
-  if(player.position.y<0){player.position.y=0;velocityY=0;canJump=true}
+
+  velocityY-=22*dt;
+  player.position.y+=velocityY*dt;
+
+  if(player.position.y<0){
+   player.position.y=0;
+   velocityY=0;
+   canJump=true;
+  }
+
   const d=Math.hypot(player.position.x,player.position.z);
-  if(d>WORLD-5){player.position.x*= (WORLD-5)/d;player.position.z*= (WORLD-5)/d}
+
+  if(d>WORLD-5){
+   player.position.x*=(WORLD-5)/d;
+   player.position.z*=(WORLD-5)/d;
+  }
+
   updateBots(dt);
   document.getElementById('phaseText').textContent='SURVIVE';
  }
@@ -971,13 +1653,17 @@ function animate(){
   player.position.y+5-Math.sin(pitch)*4,
   player.position.z+Math.cos(yaw)*11
  );
+
  camera.position.lerp(target,Math.min(1,dt*7));
+
  camera.lookAt(
   player.position.x-Math.sin(yaw)*10,
   player.position.y+1.5+Math.sin(pitch)*5,
   player.position.z-Math.cos(yaw)*10
  );
- updateMap();renderer.render(scene,camera);
+
+ updateMap();
+ renderer.render(scene,camera);
 }
 
 // =====================================
@@ -985,51 +1671,78 @@ function animate(){
 // =====================================
 function startGame(){
  if(started)return;
+
  hidePanels();
  document.getElementById('lobby').style.display='none';
  document.getElementById('game').style.display='block';
+
  try{
   started=true;
   localStorage.setItem(S.matches,String(num(S.matches)+1));
   init();
  }catch(e){
-  console.error(e);started=false;
+  console.error(e);
+  started=false;
   alert('Could not start game. Check the browser console.');
   document.getElementById('game').style.display='none';
   document.getElementById('lobby').style.display='block';
  }
 }
+
 function backToLobby(){
  started=false;
  document.exitPointerLock();
+
  if(renderer){
   renderer.dispose();
   renderer.domElement.remove();
+  renderer=null;
  }
+
  window.removeEventListener('keydown',keyDown);
  window.removeEventListener('keyup',keyUp);
  document.removeEventListener('mousemove',mouseMove);
+
  document.getElementById('game').style.display='none';
+ document.getElementById('endScreen').style.display='none';
  document.getElementById('lobby').style.display='block';
- refreshSkinSelect();updateCurrency();refreshPass();refreshQuests();
+
+ refreshSkinSelect();
+ updateCurrency();
+ refreshPass();
+ refreshQuests();
 }
+
 function resize(){
  if(!camera||!renderer)return;
+
  camera.aspect=innerWidth/innerHeight;
  camera.updateProjectionMatrix();
  renderer.setSize(innerWidth,innerHeight);
 }
+
 window.backToLobby=backToLobby;
+
 document.getElementById('enterLobby').onclick=()=>{
  document.getElementById('intro').style.display='none';
  document.getElementById('lobby').style.display='block';
- updateCurrency();refreshSkinSelect();refreshShop();refreshPass();refreshQuests();
+
+ initLobby3D();
+
+ updateCurrency();
+ refreshSkinSelect();
+ refreshShop();
+ refreshPass();
+ refreshQuests();
 };
+
 document.getElementById('playButton').onclick=()=>{
  localStorage.setItem(S.skin,document.getElementById('skinSelect').value);
  startGame();
 };
+
 document.getElementById('exit').onclick=backToLobby;
+
 updateCurrency();
 </script>
 </body>
