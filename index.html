@@ -48,6 +48,7 @@ window.supabaseCreateClient=createClient;
    <div class="tag">YOUR ISLAND. YOUR RANK.</div><h1 class="logo">RANKED ISLAND</h1><p>Land on the island. Outsmart the bots. Climb the ranks.</p>
    <button style="font-size:20px;padding:15px 38px" onclick="startGame()">PLAY SOLO</button>
    <div class="tabs"><button class="secondary" onclick="openPanel('pass')">STORM PASS</button><button class="secondary" onclick="openPanel('shop')">SHOP</button><button class="secondary" onclick="openPanel('skins')">LOCKER</button><button class="secondary" onclick="openPanel('codes')">REDEEM CODE</button><button class="secondary" onclick="openPanel('stats')">STATS</button><button style="background:#8d4bd1;color:white;box-shadow:0 0 14px #a66bff88" onclick="openPanel('events')">● LIVE EVENTS</button></div>
+   <button class="secondary" onclick="openPanel('settings')">⚙ SETTINGS</button>
    <p class="muted">EXPANDED ISLAND · FORESTS · TOWNS · RARITY CHESTS · SOLO BATTLE ROYALE</p>
   </div>
  </div>
@@ -116,6 +117,25 @@ function openPanel(which){
   c.innerHTML='<p>Enter a redeem code</p><input id="redeemInput" placeholder="CODE"><button onclick="redeemCode()">REDEEM</button><p class="muted">Een code kan maar één keer per account gebruikt worden.</p>';
  }else if(which==='stats'){
   c.innerHTML=`<p>Username: ${escapeHTML(profile.username)}</p><p>Level: ${account.level} · Wins: ${account.wins} · Eliminations: ${account.elims}</p><p>Matches: ${account.matches} · XP: ${account.xp} · Storm Crystals: ${account.sc}</p>`;
+}else if(which==='settings'){
+  const distance=getRenderDistance();
+  c.innerHTML=`
+    <h3>⚙ GAME SETTINGS</h3>
+    <div class="item">
+      <label for="renderDistanceSlider">RENDER DISTANCE</label>
+      <h2><span id="renderDistanceValue">${distance}</span></h2>
+      <input
+        id="renderDistanceSlider"
+        type="range"
+        min="180"
+        max="520"
+        step="20"
+        value="${distance}"
+        oninput="setRenderDistance(this.value)"
+      >
+      <p class="muted">Lower = better performance. Higher = see further.</p>
+    </div>
+  `;
  }else if(which==='events'){
   c.innerHTML=`<div class="eventLiveCard"><div class="eventStatus">● ISLAND LIVE EVENTS</div><h3>Wat gebeurt er op het eiland?</h3><p class="muted">Actieve events verschijnen hier én als grote banner in de lobby. De lijst ververst automatisch.</p></div><div id="eventText">Live events worden geladen...</div>${isAdmin?adminEventForm():''}`;
   loadEvents();
@@ -140,7 +160,35 @@ function adminEventForm(){
 function adminDashboard(){
  return `<div class="eventLiveCard"><div class="eventStatus">● ADMIN ACCESS GRANTED</div><h3>RANKED ISLAND CONTROL ROOM</h3><p>Welkom in het adminpanel. Hier kun je live events hosten en controleren.</p></div>${adminEventForm()}<div id="eventText">Events worden geladen...</div>`;
 }
-window.openPanel=openPanel;
+function getRenderDistance(){
+  const saved=Number(localStorage.getItem('rankedRenderDistance')||320);
+  return Math.max(180,Math.min(520,Math.round(saved/20)*20));
+}
+
+function setRenderDistance(value){
+  const distance=Math.max(180,Math.min(520,Math.round(Number(value)/20)*20));
+
+  localStorage.setItem('rankedRenderDistance',String(distance));
+
+  const slider=$('renderDistanceSlider');
+  const output=$('renderDistanceValue');
+
+  if(slider)slider.value=distance;
+  if(output)output.textContent=distance;
+
+  if(scene&&scene.fog){
+    scene.fog.near=Math.max(60,Math.round(distance*.23));
+    scene.fog.far=distance;
+  }
+
+  if(camera){
+    camera.far=distance+40;
+    camera.updateProjectionMatrix();
+  }
+}
+
+window.setRenderDistance=setRenderDistance;
+ window.openPanel=openPanel;
 function closePanel(){$('modal').classList.add('hidden')}window.closePanel=closePanel;
 function buyPass(){if(account.passPlus){notify('Pass+ is already active this season');return}if(account.sc<1500){notify('Not enough Storm Crystals');return}account.sc-=1500;account.passPlus=true;saveAccount();openPanel('pass')}
 function claimReward(level,plus){if(level>account.level){notify('Reach this level first');return}const list=plus?account.claimedPlus:account.claimedFree;if(plus&&!account.passPlus){notify('You need STORM PASS+');return}if(list.includes(level)){notify('Already claimed');return}list.push(level);if(!plus){if(level<=6)account.sc+=100;else account.sc+=25}else account.sc+=160;saveAccount();openPanel('pass')}
@@ -210,7 +258,25 @@ function stopLobby3D(){lobbyFrame=0;if(lobbyRenderer){lobbyRenderer.dispose();lo
 /* Solo battle royale */
 const WORLD=650;let scene,camera,renderer,clock,player,bus,bots=[],trees=[],chests=[],buildings=[],keys={},health=100,shield=100,elims=0,matchXP=0,weapon=null,started=false,busPhase=true,vy=0,canJump=true,yaw=0,pitch=0,lastShot=0,zoneRadius=620,zoneClock=0,toastClock=0,gameEventsAttached=false;
 function startGame(){if(!user){alert('Je moet eerst inloggen!');$('auth').classList.remove('hidden');return}closePanel();$('lobby').classList.add('hidden');$('game').style.display='block';$('end').classList.add('hidden');if(!renderer)initGame();resetGame();started=true;clock.start();renderer.domElement.requestPointerLock();animate()}
-function initGame(){clock=new THREE.Clock();scene=new THREE.Scene();scene.background=new THREE.Color(0x8bd5ed);scene.fog=new THREE.Fog(0x8bd5ed,380,1450);camera=new THREE.PerspectiveCamera(75,innerWidth/innerHeight,.1,1200);renderer=new THREE.WebGLRenderer({antialias:true});renderer.setSize(innerWidth,innerHeight);renderer.setPixelRatio(Math.min(devicePixelRatio,2));$('game').insertBefore(renderer.domElement,$('game').firstChild);scene.add(new THREE.HemisphereLight(0xffffff,0x536b3b,2));const sun=new THREE.DirectionalLight(0xffffff,2);sun.position.set(100,150,70);scene.add(sun);const land=new THREE.Mesh(new THREE.CylinderGeometry(WORLD-8,WORLD,10,96),new THREE.MeshStandardMaterial({color:0x4b9b43}));land.position.y=-5;scene.add(land);const grass=new THREE.Mesh(new THREE.CircleGeometry(WORLD-8,96),new THREE.MeshStandardMaterial({color:0x65b94d}));grass.rotation.x=-Math.PI/2;grass.position.y=.1;scene.add(grass);const water=new THREE.Mesh(new THREE.CircleGeometry(1050,96),new THREE.MeshStandardMaterial({color:0x258bc7}));water.rotation.x=-Math.PI/2;water.position.y=-10.2;scene.add(water);for(let i=0;i<900;i++){const a=Math.random()*Math.PI*2,r=22+Math.random()*(WORLD-38),x=Math.cos(a)*r,z=Math.sin(a)*r;
+function initGame(){
+clock=new THREE.Clock();
+scene=new THREE.Scene();
+scene.background=new THREE.Color(0x8bd5ed);
+
+const renderDistance=getRenderDistance();
+
+scene.fog=new THREE.Fog(
+  0x8bd5ed,
+  Math.max(60,Math.round(renderDistance*.23)),
+  renderDistance
+);
+
+camera=new THREE.PerspectiveCamera(
+  75,
+  innerWidth/innerHeight,
+  .1,
+  renderDistance+40
+);;renderer=new THREE.WebGLRenderer({antialias:true});renderer.setSize(innerWidth,innerHeight);renderer.setPixelRatio(Math.min(devicePixelRatio,2));$('game').insertBefore(renderer.domElement,$('game').firstChild);scene.add(new THREE.HemisphereLight(0xffffff,0x536b3b,2));const sun=new THREE.DirectionalLight(0xffffff,2);sun.position.set(100,150,70);scene.add(sun);const land=new THREE.Mesh(new THREE.CylinderGeometry(WORLD-8,WORLD,10,96),new THREE.MeshStandardMaterial({color:0x4b9b43}));land.position.y=-5;scene.add(land);const grass=new THREE.Mesh(new THREE.CircleGeometry(WORLD-8,96),new THREE.MeshStandardMaterial({color:0x65b94d}));grass.rotation.x=-Math.PI/2;grass.position.y=.1;scene.add(grass);const water=new THREE.Mesh(new THREE.CircleGeometry(1050,96),new THREE.MeshStandardMaterial({color:0x258bc7}));water.rotation.x=-Math.PI/2;water.position.y=-10.2;scene.add(water);for(let i=0;i<900;i++){const a=Math.random()*Math.PI*2,r=22+Math.random()*(WORLD-38),x=Math.cos(a)*r,z=Math.sin(a)*r;
 if(isNearSettlement(x,z,58))continue;
 const g=new THREE.Group();const tr=new THREE.Mesh(new THREE.CylinderGeometry(.5,.7,4,7),new THREE.MeshStandardMaterial({color:0x79502c}));tr.position.y=2;const le=new THREE.Mesh(new THREE.ConeGeometry(3,7,8),new THREE.MeshStandardMaterial({color:0x176b35}));le.position.y=7;g.add(tr,le);g.position.set(x,0,z);scene.add(g);trees.push(g)}
 createSettlements();
