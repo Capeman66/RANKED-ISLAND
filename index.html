@@ -2245,6 +2245,99 @@ $('exit').onclick=backToLobby;
 
 updateCurrency();
 initializeAuth();
+ 
+<!-- STORM ISLAND ADMIN PANEL -->
+<div id="adminPanel" style="display:none; position:fixed; inset:0; z-index:99999; background:#101827; color:white; padding:25px; overflow:auto; font-family:Arial;">
+  <h1>⚡ STORM ISLAND ADMIN</h1>
+  <h2>LIVE EVENTS</h2>
+
+  <input id="eventTitle" placeholder="Event name">
+  
+  <select id="eventType">
+    <option value="double_crystals">Double Crystals</option>
+    <option value="double_xp">Double XP</option>
+    <option value="super_chests">Super Chests</option>
+    <option value="custom">Custom Event</option>
+  </select>
+
+  <p>Duration (hours)</p>
+  <input id="eventHours" type="number" min="1" value="1">
+
+  <button onclick="createLiveEvent()">CREATE EVENT</button>
+
+  <h2>ACTIVE EVENTS</h2>
+  <div id="adminEvents">Loading...</div>
+
+  <button onclick="document.getElementById('adminPanel').style.display='none'">CLOSE</button>
+</div>
+
+<script>
+const ADMIN_ACCESS_CODE = "CHANGE-MY-CODE";
+
+function openAdminPanel() {
+  const code = prompt("Enter admin access code:");
+
+  if (code !== ADMIN_ACCESS_CODE) {
+    alert("Access denied!");
+    return;
+  }
+
+  document.getElementById("adminPanel").style.display = "block";
+  loadAdminEvents();
+}
+
+async function createLiveEvent() {
+  const title = document.getElementById("eventTitle").value.trim();
+  const type = document.getElementById("eventType").value;
+  const hours = Number(document.getElementById("eventHours").value);
+
+  if (!title || !Number.isFinite(hours) || hours < 1) {
+    alert("Enter a name and a valid duration!");
+    return;
+  }
+
+  const { error } = await sb.from("live_events").insert({
+    title: title,
+    event_type: type,
+    multiplier: type === "double_crystals" || type === "double_xp" ? 2 : 1,
+    starts_at: new Date().toISOString(),
+    ends_at: new Date(Date.now() + hours * 3600000).toISOString()
+  });
+
+  if (error) {
+    alert("Event error: " + error.message);
+    return;
+  }
+
+  alert("LIVE EVENT CREATED!");
+  loadAdminEvents();
+}
+
+async function loadAdminEvents() {
+  const { data, error } = await sb
+    .from("live_events")
+    .select("*")
+    .order("created_at", { ascending: false });
+
+  if (error) {
+    document.getElementById("adminEvents").textContent = error.message;
+    return;
+  }
+
+  document.getElementById("adminEvents").innerHTML = "";
+
+  data.forEach(event => {
+    const item = document.createElement("div");
+    item.style.padding = "12px";
+    item.style.margin = "10px 0";
+    item.style.background = "#24344d";
+    item.style.borderRadius = "8px";
+    item.textContent = event.title + " — " + event.event_type;
+    document.getElementById("adminEvents").appendChild(item);
+  });
+}
+</script>
+
 </script>
 </body>
 </html>
