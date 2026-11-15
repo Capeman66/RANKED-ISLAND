@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -82,10 +83,41 @@ h2{letter-spacing:4px}
  right:15px;
  display:flex;
  justify-content:space-between;
+ gap:12px;
  pointer-events:none;
  text-shadow:1px 2px 4px black;
  font-weight:bold;
  z-index:2;
+}
+
+#healthBox{
+ position:absolute;
+ top:55px;
+ left:15px;
+ width:220px;
+ z-index:3;
+}
+
+#healthBar{
+ width:100%;
+ height:14px;
+ background:#333;
+ border:2px solid white;
+ border-radius:10px;
+ overflow:hidden;
+}
+
+#healthFill{
+ width:100%;
+ height:100%;
+ background:#38dc62;
+ transition:width .2s;
+}
+
+#healthText{
+ margin-top:5px;
+ font-size:13px;
+ text-shadow:1px 2px 4px black;
 }
 
 #help{
@@ -111,6 +143,30 @@ h2{letter-spacing:4px}
  font-size:24px;
  pointer-events:none;
  z-index:2;
+ text-shadow:0 0 4px black;
+}
+
+#hitMarker{
+ position:absolute;
+ top:calc(50% - 35px);
+ left:50%;
+ transform:translateX(-50%);
+ color:white;
+ font-size:19px;
+ font-weight:bold;
+ text-shadow:0 0 5px black;
+ display:none;
+ z-index:3;
+}
+
+#damageFlash{
+ position:absolute;
+ inset:0;
+ background:rgba(255,0,0,.25);
+ opacity:0;
+ pointer-events:none;
+ z-index:1;
+ transition:opacity .15s;
 }
 
 table{
@@ -124,7 +180,7 @@ td{
  border-bottom:1px solid #40546b;
 }
 
-input{
+input,select{
  padding:10px;
  border-radius:6px;
  border:0;
@@ -132,9 +188,16 @@ input{
  margin:8px 0;
 }
 
-canvas{
- display:block;
+.skinPreview{
+ display:inline-block;
+ width:18px;
+ height:18px;
+ border-radius:50%;
+ vertical-align:middle;
+ margin-right:7px;
 }
+
+canvas{display:block}
 </style>
 </head>
 
@@ -152,12 +215,23 @@ canvas{
 
  <p>Land on the island. Outsmart the bots. Climb the ranks.</p>
 
-<button id="playButton">PLAY SOLO</button>
- <button onclick="showSettings()">SETTINGS</button>
- <button onclick="showLeaderboard()">LEADERBOARD</button>
+ <div class="panel">
+  <h2>CHOOSE YOUR SKIN</h2>
+
+  <select id="skinSelect">
+   <option value="blue">Classic Blue</option>
+   <option value="black">Shadow Black</option>
+   <option value="green">Neon Green</option>
+   <option value="purple">Royal Purple</option>
+  </select>
+
+  <button id="playButton">PLAY SOLO</button>
+  <button onclick="showSettings()">SETTINGS</button>
+  <button onclick="showLeaderboard()">LEADERBOARD</button>
+ </div>
 
  <p class="tag">YOUR ISLAND. YOUR RANK.</p>
- <p>SOLO BATTLE ROYALE · NO MULTIPLAYER · VERSION 0.3</p>
+ <p>SOLO BATTLE ROYALE · NO MULTIPLAYER · VERSION 0.6</p>
 
  <div id="settings" class="panel" style="display:none">
   <h2>SETTINGS</h2>
@@ -168,7 +242,7 @@ canvas{
 
  <div id="leaderboard" class="panel" style="display:none">
   <h2>LEADERBOARD</h2>
-  <p>Local leaderboard on this device</p>
+  <p>Wins saved on this device</p>
   <table id="scores"></table>
   <button onclick="hidePanels()">BACK</button>
  </div>
@@ -178,13 +252,22 @@ canvas{
 <div id="game">
 
  <div id="hud">
-  <span>BOTS LEFT: <b id="botsLeft">5</b></span>
+  <span>BOTS LEFT: <b id="botsLeft">12</b></span>
   <span>ZONE: SAFE</span>
-  <span>HEALTH: 100</span>
+  <span>SOLO</span>
+ </div>
+
+ <div id="healthBox">
+  <div id="healthBar">
+   <div id="healthFill"></div>
+  </div>
+  <div id="healthText">HEALTH: 100</div>
  </div>
 
  <div id="crosshair">+</div>
-<div id="hitMarker">HIT!</div>
+ <div id="hitMarker">HIT!</div>
+ <div id="damageFlash"></div>
+
  <div id="help">
   WASD move · Mouse look · Space jump · Left click fire · ESC unlock mouse
  </div>
@@ -197,6 +280,10 @@ canvas{
 
 import * as THREE from 'three';
 
+// =====================================
+// VARIABLES
+// =====================================
+
 let scene;
 let camera;
 let renderer;
@@ -205,6 +292,7 @@ let clock;
 
 let bots=[];
 let keys={};
+
 let yaw=0;
 let pitch=0;
 
@@ -212,15 +300,27 @@ let started=false;
 let velocityY=0;
 let canJump=true;
 
-let score=0;
+let health=100;
 let lastShot=0;
+
+let playerBodyMaterial;
 
 const lobby=document.getElementById('lobby');
 const game=document.getElementById('game');
-document.getElementById('playButton').addEventListener('click', startGame);
+
+const skinColors={
+ blue:0x267bff,
+ black:0x252b36,
+ green:0x39e65c,
+ purple:0x963cff
+};
+
+document.getElementById('playButton')
+ .addEventListener('click',startGame);
+
 
 // =====================================
-// LOBBY FUNCTIONS
+// LOBBY
 // =====================================
 
 function showSettings(){
@@ -239,23 +339,38 @@ function hidePanels(){
  document.getElementById('leaderboard').style.display='none';
 }
 
+
+// =====================================
+// WINS LEADERBOARD
+// =====================================
+
+function getWins(){
+
+ try{
+  return JSON.parse(localStorage.getItem('rankedWins')||'[]');
+ }catch(error){
+  return [];
+ }
+
+}
+
 function updateLeaderboard(){
 
- let data=JSON.parse(localStorage.getItem('rankedScores')||'[]');
+ let data=getWins();
 
- data.sort((a,b)=>b.xp-a.xp);
+ data.sort((a,b)=>b.wins-a.wins);
 
  if(!data.length){
   data=[
-   {name:'IslandLegend',xp:1250},
-   {name:'StormRunner',xp:980},
-   {name:'BotHunter',xp:760}
+   {name:'IslandLegend',wins:12},
+   {name:'StormRunner',wins:8},
+   {name:'BotHunter',wins:5}
   ];
  }
 
  document.getElementById('scores').innerHTML=
  data.slice(0,10).map((x,i)=>
- `<tr><td>${i+1}. ${escapeHTML(x.name)}</td><td>${x.xp} XP</td></tr>`
+ `<tr><td>${i+1}. ${escapeHTML(x.name)}</td><td>${x.wins} WINS</td></tr>`
  ).join('');
 
 }
@@ -272,16 +387,19 @@ function escapeHTML(s){
 
 }
 
-function saveScore(){
+function saveWin(){
 
- let data=JSON.parse(localStorage.getItem('rankedScores')||'[]');
+ let data=getWins();
 
- data.push({
-  name:'You',
-  xp:score
- });
+ let you=data.find(x=>x.name==='You');
 
- localStorage.setItem('rankedScores',JSON.stringify(data));
+ if(you){
+  you.wins++;
+ }else{
+  data.push({name:'You',wins:1});
+ }
+
+ localStorage.setItem('rankedWins',JSON.stringify(data));
 
 }
 
@@ -305,9 +423,7 @@ function startGame(){
 
   started=true;
 
-  if(renderer && renderer.domElement.requestPointerLock){
-   renderer.domElement.requestPointerLock();
-  }
+  renderer.domElement.requestPointerLock();
 
  }catch(error){
 
@@ -324,7 +440,7 @@ function startGame(){
 
 
 // =====================================
-// INITIALIZE THREE.JS
+// INITIALIZE
 // =====================================
 
 function init(){
@@ -332,9 +448,7 @@ function init(){
  clock=new THREE.Clock();
 
  scene=new THREE.Scene();
-
  scene.background=new THREE.Color(0x8bd5ed);
-
  scene.fog=new THREE.Fog(0x8bd5ed,90,220);
 
  camera=new THREE.PerspectiveCamera(
@@ -344,14 +458,9 @@ function init(){
   500
  );
 
- renderer=new THREE.WebGLRenderer({
-  antialias:true
- });
-
+ renderer=new THREE.WebGLRenderer({antialias:true});
  renderer.setSize(window.innerWidth,window.innerHeight);
-
  renderer.setPixelRatio(Math.min(window.devicePixelRatio,2));
-
  renderer.shadowMap.enabled=true;
 
  game.insertBefore(renderer.domElement,game.firstChild);
@@ -359,16 +468,11 @@ function init(){
 
  // LIGHTING
 
- scene.add(
-  new THREE.HemisphereLight(0xffffff,0x536b3b,2)
- );
+ scene.add(new THREE.HemisphereLight(0xffffff,0x536b3b,2));
 
  const sun=new THREE.DirectionalLight(0xffffff,2);
-
  sun.position.set(40,80,30);
-
  sun.castShadow=true;
-
  scene.add(sun);
 
 
@@ -380,9 +484,7 @@ function init(){
  );
 
  ground.position.y=-4;
-
  ground.receiveShadow=true;
-
  scene.add(ground);
 
 
@@ -394,9 +496,7 @@ function init(){
  );
 
  grass.rotation.x=-Math.PI/2;
-
  grass.position.y=0.05;
-
  scene.add(grass);
 
 
@@ -408,20 +508,15 @@ function init(){
  );
 
  water.rotation.x=-Math.PI/2;
-
  water.position.y=-8.2;
-
  scene.add(water);
 
 
- // =====================================
  // TREES
- // =====================================
 
  for(let i=0;i<100;i++){
 
   const a=Math.random()*Math.PI*2;
-
   const r=12+Math.random()*68;
 
   const x=Math.cos(a)*r;
@@ -433,9 +528,7 @@ function init(){
   );
 
   trunk.position.set(x,1.5,z);
-
   scene.add(trunk);
-
 
   const leaves=new THREE.Mesh(
    new THREE.ConeGeometry(2.5,6,8),
@@ -443,27 +536,29 @@ function init(){
   );
 
   leaves.position.set(x,5,z);
-
   scene.add(leaves);
 
  }
 
 
- // =====================================
  // PLAYER
- // =====================================
 
  player=new THREE.Group();
 
+ const selectedSkin=document.getElementById('skinSelect').value;
+ const selectedColor=skinColors[selectedSkin]||skinColors.blue;
+
+ playerBodyMaterial=new THREE.MeshStandardMaterial({
+  color:selectedColor
+ });
+
  const body=new THREE.Mesh(
   new THREE.CapsuleGeometry(.65,1.1,4,8),
-  new THREE.MeshStandardMaterial({color:0x267bff})
+  playerBodyMaterial
  );
 
  body.position.y=1.1;
-
  player.add(body);
-
 
  const head=new THREE.Mesh(
   new THREE.SphereGeometry(.42,16,16),
@@ -471,33 +566,34 @@ function init(){
  );
 
  head.position.y=2.25;
-
  player.add(head);
 
  scene.add(player);
-
  player.position.set(0,0,0);
 
 
- // =====================================
  // BOTS
- // =====================================
 
  bots=[];
 
- for(let i=0;i<5;i++){
+ for(let i=0;i<12;i++){
 
   const bot=new THREE.Group();
 
+  const botColor=[
+   0xe34b42,
+   0x8c48d9,
+   0xe5a52d,
+   0x35a7a0
+  ][i%4];
+
   const body=new THREE.Mesh(
    new THREE.CapsuleGeometry(.6,1,4,8),
-   new THREE.MeshStandardMaterial({color:0xe34b42})
+   new THREE.MeshStandardMaterial({color:botColor})
   );
 
   body.position.y=1;
-
   bot.add(body);
-
 
   const head=new THREE.Mesh(
    new THREE.SphereGeometry(.4,12,12),
@@ -505,13 +601,10 @@ function init(){
   );
 
   head.position.y=2.1;
-
   bot.add(head);
 
-
   const a=Math.random()*Math.PI*2;
-
-  const r=15+Math.random()*45;
+  const r=20+Math.random()*45;
 
   bot.position.set(
    Math.cos(a)*r,
@@ -519,29 +612,34 @@ function init(){
    Math.sin(a)*r
   );
 
+  bot.userData.shootCooldown=1+Math.random()*2;
   bot.userData.direction=Math.random()*Math.PI*2;
 
   scene.add(bot);
-
   bots.push(bot);
 
  }
 
  document.getElementById('botsLeft').textContent=bots.length;
 
+ health=100;
+ updateHealth();
 
- // =====================================
+ yaw=0;
+ pitch=0;
+ velocityY=0;
+ canJump=true;
+
+ keys={};
+
+
  // CONTROLS
- // =====================================
 
  window.addEventListener('keydown',onKeyDown);
-
  window.addEventListener('keyup',onKeyUp);
 
  renderer.domElement.addEventListener('click',onCanvasClick);
-
  document.addEventListener('mousemove',onMouseMove);
-
  window.addEventListener('resize',resize);
 
  animate();
@@ -564,9 +662,7 @@ function onKeyDown(e){
 }
 
 function onKeyUp(e){
-
  keys[e.code]=false;
-
 }
 
 
@@ -577,13 +673,9 @@ function onKeyUp(e){
 function onCanvasClick(){
 
  if(document.pointerLockElement!==renderer.domElement){
-
   renderer.domElement.requestPointerLock();
-
  }else{
-
   shoot();
-
  }
 
 }
@@ -596,7 +688,6 @@ function onMouseMove(e){
    Number(document.getElementById('sensitivity').value)*0.00025;
 
   yaw-=e.movementX*sensitivity;
-
   pitch-=e.movementY*sensitivity;
 
   pitch=Math.max(-0.8,Math.min(0.8,pitch));
@@ -607,10 +698,12 @@ function onMouseMove(e){
 
 
 // =====================================
-// SHOOTING
+// PLAYER SHOOTING
 // =====================================
 
 function shoot(){
+
+ if(!started)return;
 
  const now=performance.now();
 
@@ -619,7 +712,6 @@ function shoot(){
  lastShot=now;
 
  const origin=camera.position.clone();
-
  const direction=new THREE.Vector3();
 
  camera.getWorldDirection(direction);
@@ -645,10 +737,9 @@ function shoot(){
   if(bot){
 
    scene.remove(bot);
-
    bots=bots.filter(b=>b!==bot);
 
-   score+=100;
+   showHitMarker();
 
    document.getElementById('botsLeft').textContent=bots.length;
 
@@ -664,18 +755,180 @@ function shoot(){
 
 
 // =====================================
-// END GAME
+// HIT MARKER
+// =====================================
+
+let hitMarkerTimer;
+
+function showHitMarker(){
+
+ const marker=document.getElementById('hitMarker');
+
+ marker.style.display='block';
+
+ clearTimeout(hitMarkerTimer);
+
+ hitMarkerTimer=setTimeout(()=>{
+  marker.style.display='none';
+ },250);
+
+}
+
+
+// =====================================
+// BOT AI
+// =====================================
+
+function updateBots(dt){
+
+ bots.forEach(bot=>{
+
+  const dx=player.position.x-bot.position.x;
+  const dz=player.position.z-bot.position.z;
+
+  const distance=Math.hypot(dx,dz);
+
+  if(distance>0.01){
+
+   const direction=new THREE.Vector3(dx,0,dz).normalize();
+
+   // Bots move towards the player
+
+   if(distance>9){
+
+    bot.position.x+=direction.x*2.5*dt;
+    bot.position.z+=direction.z*2.5*dt;
+
+   }
+
+   bot.rotation.y=Math.atan2(direction.x,direction.z);
+
+  }
+
+  // Bots shoot back
+
+  bot.userData.shootCooldown-=dt;
+
+  if(distance<45 && bot.userData.shootCooldown<=0){
+
+   bot.userData.shootCooldown=1.7+Math.random()*0.8;
+
+   botShoot(bot,distance);
+
+  }
+
+ });
+
+}
+
+
+// =====================================
+// INVISIBLE BOT SHOTS
+// =====================================
+
+function botShoot(bot,distance){
+
+ if(!started)return;
+
+ // The hit is decided when the bot fires.
+ // There is no visible projectile to dodge.
+
+ const hitDelay=Math.max(0.12,distance/45);
+
+ setTimeout(()=>{
+
+  if(!started)return;
+
+  damagePlayer(10);
+
+ },hitDelay);
+
+}
+
+
+// =====================================
+// PLAYER DAMAGE
+// =====================================
+
+function damagePlayer(amount){
+
+ if(!started)return;
+
+ health=Math.max(0,health-amount);
+
+ updateHealth();
+
+ const flash=document.getElementById('damageFlash');
+
+ flash.style.opacity='1';
+
+ setTimeout(()=>{
+  flash.style.opacity='0';
+ },150);
+
+ if(health<=0){
+  loseGame();
+ }
+
+}
+
+
+// =====================================
+// HEALTH DISPLAY
+// =====================================
+
+function updateHealth(){
+
+ document.getElementById('healthText').textContent=
+  'HEALTH: '+health;
+
+ document.getElementById('healthFill').style.width=
+  health+'%';
+
+ const fill=document.getElementById('healthFill');
+
+ if(health>60){
+  fill.style.background='#38dc62';
+ }else if(health>30){
+  fill.style.background='#ffb52e';
+ }else{
+  fill.style.background='#ff3939';
+ }
+
+}
+
+
+// =====================================
+// WIN / LOSE
 // =====================================
 
 function endGame(){
 
+ if(!started)return;
+
+ started=false;
+
  document.exitPointerLock();
 
- saveScore();
+ saveWin();
 
- alert('YOU WIN! You earned '+score+' XP!');
+ alert('YOU WIN! You defeated all the bots and earned 1 WIN!');
 
- backToLobby();
+ location.reload();
+
+}
+
+function loseGame(){
+
+ if(!started)return;
+
+ started=false;
+
+ document.exitPointerLock();
+
+ alert('YOU WERE ELIMINATED! Try again!');
+
+ location.reload();
 
 }
 
@@ -689,7 +942,6 @@ function resize(){
  if(!camera||!renderer)return;
 
  camera.aspect=window.innerWidth/window.innerHeight;
-
  camera.updateProjectionMatrix();
 
  renderer.setSize(window.innerWidth,window.innerHeight);
@@ -705,7 +957,7 @@ function animate(){
 
  requestAnimationFrame(animate);
 
- if(!started && !player)return;
+ if(!started)return;
 
  if(!clock)return;
 
@@ -728,23 +980,10 @@ function animate(){
 
  const move=new THREE.Vector3();
 
-
- if(keys.KeyW||keys.ArrowUp){
-  move.add(forward);
- }
-
- if(keys.KeyS||keys.ArrowDown){
-  move.sub(forward);
- }
-
- if(keys.KeyD||keys.ArrowRight){
-  move.add(right);
- }
-
- if(keys.KeyA||keys.ArrowLeft){
-  move.sub(right);
- }
-
+ if(keys.KeyW||keys.ArrowUp)move.add(forward);
+ if(keys.KeyS||keys.ArrowDown)move.sub(forward);
+ if(keys.KeyD||keys.ArrowRight)move.add(right);
+ if(keys.KeyA||keys.ArrowLeft)move.sub(right);
 
  if(move.length()>0){
 
@@ -762,22 +1001,17 @@ function animate(){
  if(keys.Space&&canJump){
 
   velocityY=9;
-
   canJump=false;
 
  }
 
  velocityY-=24*dt;
-
  player.position.y+=velocityY*dt;
-
 
  if(player.position.y<0){
 
   player.position.y=0;
-
   velocityY=0;
-
   canJump=true;
 
  }
@@ -793,33 +1027,17 @@ function animate(){
  if(distance>80){
 
   player.position.x*=80/distance;
-
   player.position.z*=80/distance;
 
  }
 
 
- // BOT MOVEMENT
+ // BOT AI
 
- bots.forEach(bot=>{
-
-  bot.userData.direction+=(Math.random()-0.5)*dt;
-
-  bot.position.x+=Math.cos(bot.userData.direction)*3*dt;
-
-  bot.position.z+=Math.sin(bot.userData.direction)*3*dt;
+ updateBots(dt);
 
 
-  if(Math.hypot(bot.position.x,bot.position.z)>75){
-
-   bot.userData.direction+=Math.PI;
-
-  }
-
- });
-
-
- // CAMERA
+ // THIRD-PERSON CAMERA
 
  const target=new THREE.Vector3(
   player.position.x+Math.sin(yaw)*10,
@@ -829,11 +1047,13 @@ function animate(){
 
  camera.position.lerp(target,Math.min(1,dt*7));
 
- camera.lookAt(
-  player.position.x,
-  player.position.y+1.4,
-  player.position.z
+ const lookTarget=new THREE.Vector3(
+  player.position.x-Math.sin(yaw)*10,
+  player.position.y+1.4+Math.sin(pitch)*5,
+  player.position.z-Math.cos(yaw)*10
  );
+
+ camera.lookAt(lookTarget);
 
 
  renderer.render(scene,camera);
@@ -848,14 +1068,13 @@ function animate(){
 function backToLobby(){
 
  document.exitPointerLock();
-
  location.reload();
 
 }
 
 
 // =====================================
-// MAKE BUTTON FUNCTIONS ACCESSIBLE
+// GLOBAL BUTTON FUNCTIONS
 // =====================================
 
 window.startGame=startGame;
