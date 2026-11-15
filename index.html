@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -153,7 +152,7 @@ canvas{
 
  <p>Land on the island. Outsmart the bots. Climb the ranks.</p>
 
- <button onclick="startGame()">PLAY SOLO</button>
+<button id="playButton">PLAY SOLO</button>
  <button onclick="showSettings()">SETTINGS</button>
  <button onclick="showLeaderboard()">LEADERBOARD</button>
 
@@ -218,7 +217,7 @@ let lastShot=0;
 
 const lobby=document.getElementById('lobby');
 const game=document.getElementById('game');
-
+document.getElementById('playButton').addEventListener('click', startGame);
 
 // =====================================
 // LOBBY FUNCTIONS
