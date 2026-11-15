@@ -10,7 +10,20 @@ import {createClient} from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2
 window.supabaseCreateClient=createClient;
 </script>
 <style>
-*{box-sizing:border-box}body{margin:0;background:#0c1726;color:#fff;font-family:Arial,sans-serif;overflow:hidden}button,input{font:inherit}button{border:0;border-radius:8px;padding:11px 17px;background:#ffb52e;color:#171717;font-weight:800;cursor:pointer;margin:4px}button:hover{filter:brightness(1.12)}button.secondary{background:#35516d;color:white}button.red{background:#b83c46;color:white}input{display:block;width:100%;padding:12px;border:1px solid #52677d;border-radius:7px;background:#0d1b2b;color:white;margin:7px 0}.screen{position:fixed;inset:0;overflow:auto;background:radial-gradient(circle at 50% 0,#315c78,#0c1726 70%);padding:24px 14px;text-align:center}.hidden{display:none!important}.tag{color:#ffc34e;font-weight:bold;letter-spacing:3px}.logo{font-size:clamp(48px,8vw,88px);line-height:.85;margin:18px 0;text-shadow:0 5px 0 #17283c}.card{background:#17283cee;border:1px solid #49627c;border-radius:13px;padding:18px;margin:12px auto;max-width:760px}.tabs{display:flex;justify-content:center;flex-wrap:wrap;gap:4px}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(145px,1fr));gap:10px}.item{background:#20364c;border:1px solid #49627c;border-radius:10px;padding:12px}.item strong{display:block;margin:8px}.muted{color:#b8c9d9;font-size:13px}#lobby3d{position:fixed;inset:0;width:100%;height:100%;z-index:0}#lobbyUI{position:relative;z-index:1;pointer-events:none;min-height:100%;display:flex;flex-direction:column;align-items:center;justify-content:space-between;padding:22px}#lobbyUI button,#lobbyUI .card,#lobbyUI input{pointer-events:auto}#topbar{width:min(1100px,100%);display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;text-shadow:0 2px 5px #000}#mainLobby{margin:auto 0 3vh;width:min(650px,100%);background:#101d2bcc;border:1px solid #ffffff35;border-radius:18px;padding:20px;backdrop-filter:blur(7px)}#game{display:none;position:fixed;inset:0}#hud{position:absolute;top:10px;left:10px;right:10px;display:flex;justify-content:space-between;gap:7px;flex-wrap:wrap;pointer-events:none;text-shadow:1px 2px 4px #000;font-weight:bold}#hud span{background:#101827bb;padding:8px 10px;border-radius:7px}#crosshair{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);font-size:25px;text-shadow:0 1px 4px #000;pointer-events:none}#help{position:absolute;bottom:10px;left:10px;background:#101827bb;padding:8px;border-radius:7px;font-size:12px}#exit{position:absolute;bottom:10px;right:10px}#toast{position:absolute;top:90px;left:50%;transform:translateX(-50%);background:#101d2bee;padding:10px 16px;border-radius:8px;opacity:0;pointer-events:none}#zone{position:absolute;top:58px;left:50%;transform:translateX(-50%);width:230px;height:8px;background:#333;border-radius:8px;overflow:hidden}#zoneFill{height:100%;width:100%;background:#a66bff}#end{z-index:5;background:radial-gradient(circle at top,#315c78,#0c1726 70%)}table{width:100%;border-collapse:collapse;text-align:left}td,th{padding:8px;border-bottom:1px solid #40546b}#modal{position:fixed;inset:0;z-index:8;background:#000b;display:grid;place-items:center;padding:15px}.modalbox{width:min(620px,100%);max-height:90vh;overflow:auto;background:#17283c;border:1px solid #647b93;border-radius:15px;padding:20px;text-align:center}
+*{box-sizing:border-box}body{margin:0;background:#0c1726;color:#fff;font-family:Arial,sans-serif;overflow:hidden}button,input{font:inherit}button{border:0;border-radius:8px;padding:11px 17px;background:#ffb52e;color:#171717;font-weight:800;cursor:pointer;margin:4px}button:hover{filter:brightness(1.12)}button.secondary{background:#35516d;color:white}button.red{background:#b83c46;color:white}input{display:block;width:100%;padding:12px;border:1px solid #52677d;border-radius:7px;background:#0d1b2b;color:white;margin:7px 0}.screen{position:fixed;inset:0;overflow:auto;background:radial-gradient(circle at 50% 0,#315c78,#0c1726 70%);padding:24px 14px;text-align:center}.hidden{display:none!important}.tag{color:#ffc34e;font-weight:bold;letter-spacing:3px}.logo{font-size:clamp(48px,8vw,88px);line-height:.85;margin:18px 0;text-shadow:0 5px 0 #17283c}.card{background:#17283cee;border:1px solid #49627c;border-radius:13px;padding:18px;margin:12px auto;max-width:760px}.tabs{display:flex;justify-content:center;flex-wrap:wrap;gap:4px}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(145px,1fr));gap:10px}.item{background:#20364c;border:1px solid #49627c;border-radius:10px;padding:12px}.item strong{display:block;margin:8px}.muted{color:#b8c9d9;font-size:13px}#lobby3d{position:fixed;inset:0;width:100%;height:100%;z-index:0}#lobbyUI{position:relative;z-index:1;pointer-events:none;min-height:100%;display:flex;flex-direction:column;align-items:center;justify-content:space-between;padding:22px}#lobbyUI button,#lobbyUI .card,#lobbyUI input{pointer-events:auto}#topbar{width:min(1100px,100%);display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;text-shadow:0 2px 5px #000}#mainLobby{margin:auto 0 3vh;width:min(650px,100%);background:#101d2bcc;border:1px solid #ffffff35;border-radius:18px;padding:20px;backdrop-filter:blur(7px)}#game{display:none;position:fixed;inset:0}#hud{position:absolute;top:10px;left:10px;right:10px;display:flex;justify-content:space-between;gap:7px;flex-wrap:wrap;pointer-events:none;text-shadow:1px 2px 4px #000;font-weight:bold}#hud span{background:#101827bb;padding:8px 10px;border-radius:7px}#crosshair{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);font-size:25px;text-shadow:0 1px 4px #000;pointer-events:none}#help{position:absolute;bottom:10px;left:10px;background:#101827bb;padding:8px;border-radius:7px;font-size:12px}#exit{position:absolute;bottom:10px;right:10px}#toast{position:absolute;top:90px;left:50%;transform:translateX(-50%);background:#101d2bee;padding:10px 16px;border-radius:8px;opacity:0;pointer-events:none}#zone{position:absolute;top:58px;left:50%;transform:translateX(-50%);width:230px;height:8px;background:#333;border-radius:8px;overflow:hidden}#zoneFill{height:100%;width:100%;background:#a66bff}#end{z-index:5;background:radial-gradient(circle at top,#315c78,#0c1726 70%)}table{width:100%;border-collapse:collapse;text-align:left}td,th{padding:8px;border-bottom:1px solid #40546b}#modal{position:fixed;inset:0;z-index:8;background:#000b;display:grid;place-items:center;padding:15px}.modalbox{width:min(760px,100%);max-height:90vh;overflow:auto;background:#17283c;border:1px solid #647b93;border-radius:15px;padding:20px;text-align:center}
+#liveEventBanner{width:min(760px,100%);margin:0 auto 12px;padding:14px 18px;border:2px solid #ffd34e;border-radius:13px;background:linear-gradient(110deg,#572d9aee,#173f70ee);box-shadow:0 0 24px #a66bff66;text-align:left;display:none;animation:eventPulse 2.8s infinite}
+#liveEventBanner .eventKicker{font-size:12px;letter-spacing:2px;font-weight:900;color:#ffe17b}
+#liveEventBanner .eventName{font-size:clamp(20px,3vw,30px);font-weight:900;margin:4px 0}
+#liveEventBanner .eventDetails{font-size:13px;color:#e6eaff}
+.eventAdmin{border:2px solid #e3b849;background:linear-gradient(145deg,#26364d,#17283c);padding:16px;border-radius:12px;margin:12px 0;text-align:left}
+.eventAdmin h3{margin:0 0 8px;color:#ffda67}
+.eventLiveCard{border:2px solid #ffce45;background:linear-gradient(120deg,#51308b,#193e68);padding:15px;border-radius:12px;margin:10px 0;text-align:left}
+.eventLiveCard h3{margin:4px 0;font-size:20px}
+.eventStatus{font-weight:900;letter-spacing:1px;color:#ffe27a}
+.eventAdmin label{display:block;text-align:left;margin-top:10px;color:#c8d8e8;font-size:13px;font-weight:bold}
+#adminTab{background:#9c43d7;color:white}
+@keyframes eventPulse{50%{box-shadow:0 0 32px #a66bff99}}
+
 </style>
 </head>
 <body>
@@ -30,18 +43,19 @@ window.supabaseCreateClient=createClient;
  <canvas id="lobby3d"></canvas>
  <div id="lobbyUI">
   <div id="topbar"><div><b id="playerLabel">PLAYER</b><div class="muted">SEASON 1 · SOLO</div></div><div><b id="crystals">0 SC</b> · <b id="level">LEVEL 1</b><br><button class="secondary" onclick="logout()">LOG OUT</button></div></div>
+  <div id="liveEventBanner"><div class="eventKicker">● LIVE EVENT NOW</div><div class="eventName" id="liveEventName">EVENT LOADING</div><div class="eventDetails" id="liveEventDetails">Loading current island event...</div></div>
   <div id="mainLobby">
    <div class="tag">YOUR ISLAND. YOUR RANK.</div><h1 class="logo">RANKED ISLAND</h1><p>Land on the island. Outsmart the bots. Climb the ranks.</p>
    <button style="font-size:20px;padding:15px 38px" onclick="startGame()">PLAY SOLO</button>
-   <div class="tabs"><button class="secondary" onclick="openPanel('pass')">STORM PASS</button><button class="secondary" onclick="openPanel('shop')">SHOP</button><button class="secondary" onclick="openPanel('skins')">LOCKER</button><button class="secondary" onclick="openPanel('codes')">REDEEM CODE</button><button class="secondary" onclick="openPanel('stats')">STATS</button><button class="secondary" onclick="openPanel('events')">LIVE EVENTS</button></div>
-   <p class="muted">3D LOBBY · SOLO BATTLE ROYALE · NO MULTIPLAYER</p>
+   <div class="tabs"><button class="secondary" onclick="openPanel('pass')">STORM PASS</button><button class="secondary" onclick="openPanel('shop')">SHOP</button><button class="secondary" onclick="openPanel('skins')">LOCKER</button><button class="secondary" onclick="openPanel('codes')">REDEEM CODE</button><button class="secondary" onclick="openPanel('stats')">STATS</button><button style="background:#8d4bd1;color:white;box-shadow:0 0 14px #a66bff88" onclick="openPanel('events')">● LIVE EVENTS</button></div>
+   <p class="muted">EXPANDED ISLAND · FORESTS · TOWNS · RARITY CHESTS · SOLO BATTLE ROYALE</p>
   </div>
  </div>
 </div>
 <div id="game">
- <div id="hud"><span>BOTS: <b id="botsLeft">20</b></span><span>HP: <b id="hp">100</b></span><span>SHIELD: <b id="shield">50</b></span><span>ELIMS: <b id="elims">0</b></span><span>XP: <b id="xp">0</b></span><span id="weaponHud">PICKAXE</span></div>
+ <div id="hud"><span>BOTS: <b id="botsLeft">18</b></span><span>HP: <b id="hp">100</b></span><span>SHIELD: <b id="shield">100</b></span><span>ELIMS: <b id="elims">0</b></span><span>XP: <b id="xp">0</b></span><span id="weaponHud">PICKAXE</span></div>
  <div id="zone"><div id="zoneFill"></div></div><div id="crosshair">+</div><div id="toast"></div>
- <div id="help">WASD bewegen · Muis kijken · Spatie springen · Linkermuisknop schieten · E kist · ESC muis los</div><button id="exit" onclick="backLobby()">EXIT</button>
+ <div id="help">WASD bewegen · Muis kijken · Spatie springen · Linkermuisknop schieten · E kist · ESC muis los · Shield tot 200</div><button id="exit" onclick="backLobby()">EXIT</button>
 </div>
 <div id="end" class="screen hidden"><div class="tag">RANKED ISLAND · SEASON 1</div><h1 class="logo" id="endTitle">RANKED ROYALE!</h1><h2 id="endSubtitle">YOU ARE THE LAST PLAYER</h2><p>ELIMS: <b id="endElims">0</b> · XP: <b id="endXP">0</b></p><button onclick="backLobby()">RETURN TO LOBBY</button></div>
 <div id="modal" class="hidden"><div class="modalbox"><div style="display:flex;justify-content:space-between;align-items:center"><h2 id="modalTitle">STORM PASS</h2><button class="red" onclick="closePanel()">CLOSE</button></div><div id="modalContent"></div></div></div>
@@ -60,23 +74,72 @@ const SKINS=[
  {id:'gold',name:'Golden Champion',price:850,color:0xe3ae35},
  {id:'commander',name:'Storm Commander',price:1000,color:0x9d315c}
 ];
-const WEAPONS=[{name:'COMMON RIFLE',damage:18,rate:.28,range:145},{name:'RARE RIFLE',damage:27,rate:.22,range:175},{name:'EPIC BLASTER',damage:38,rate:.42,range:205}];
+const WEAPONS=[
+ {name:'COMMON RIFLE',damage:18,rate:.28,range:165,rarity:'COMMON'},
+ {name:'RARE RIFLE',damage:27,rate:.22,range:190,rarity:'RARE'},
+ {name:'EPIC BLASTER',damage:38,rate:.42,range:220,rarity:'EPIC'},
+ {name:'LEGENDARY BLASTER',damage:50,rate:.34,range:250,rarity:'LEGENDARY'}
+];
 const DEFAULT_ACCOUNT=()=>({sc:500,xp:0,level:1,passPlus:false,passSeason:1,claimedFree:[],claimedPlus:[],ownedSkins:['classic'],skin:'classic',redeemed:[],wins:0,elims:0,matches:0});
 function authMode(mode){authModeNow=mode;$('usernameWrap').classList.toggle('hidden',mode!=='register');$('authSubmit').textContent=mode==='login'?'LOGIN':'CREATE ACCOUNT';$('loginTab').className=mode==='login'?'':'secondary';$('registerTab').className=mode==='register'?'':'secondary';$('password').autocomplete=mode==='login'?'current-password':'new-password';$('authMessage').textContent=mode==='login'?'Log in met je e-mailadres en wachtwoord.':'Kies een gebruikersnaam en maak je account aan.'}
 window.authMode=authMode;
 function message(t){$('authMessage').textContent=t}
 async function submitAuth(){if(!sb){message('Supabase kon niet laden. Controleer je internetverbinding.');return}const email=$('email').value.trim(),password=$('password').value,username=$('username').value.trim();if(!email||!password){message('Vul e-mail en wachtwoord in.');return}if(password.length<8){message('Je wachtwoord moet minstens 8 tekens hebben.');return}const btn=$('authSubmit');btn.disabled=true;try{let result;if(authModeNow==='register'){if(username.length<3){message('Gebruikersnaam moet minstens 3 tekens hebben.');return}result=await sb.auth.signUp({email,password,options:{data:{username}}});if(result.error)throw result.error;if(!result.data.session){message('Account aangemaakt! Controleer je e-mail om je account te bevestigen en log daarna in.');return}user=result.data.user}else{result=await sb.auth.signInWithPassword({email,password});if(result.error)throw result.error;user=result.data.user}await afterLogin(user)}catch(e){message(e.message||'Inloggen is mislukt.')}finally{btn.disabled=false}}
 window.submitAuth=submitAuth;
-async function afterLogin(u){user=u;const name=u.user_metadata?.username||u.email?.split('@')[0]||'Player';const {error}=await sb.from('profiles').upsert({id:u.id,username:name},{onConflict:'id'});if(error)console.warn('Profile sync:',error.message);profile={id:u.id,username:name};account=loadAccount();await checkAdmin();$('auth').classList.add('hidden');$('lobby').classList.remove('hidden');$('playerLabel').textContent=name;updateAccountUI();startLobby3D()}
+async function afterLogin(u){user=u;const name=u.user_metadata?.username||u.email?.split('@')[0]||'Player';const {error}=await sb.from('profiles').upsert({id:u.id,username:name},{onConflict:'id'});if(error)console.warn('Profile sync:',error.message);profile={id:u.id,username:name};account=loadAccount();await checkAdmin();$('auth').classList.add('hidden');$('lobby').classList.remove('hidden');$('playerLabel').textContent=name;updateAccountUI();syncAdminButton();startLobby3D();loadEvents();if(eventRefreshTimer)clearInterval(eventRefreshTimer);eventRefreshTimer=setInterval(()=>{if(user)loadEvents()},30000)}
+function syncAdminButton(){
+ const tabs=document.querySelector('#mainLobby .tabs');
+ if(!tabs)return;
+ const old=$('adminTab');if(old)old.remove();
+ if(isAdmin){
+  const b=document.createElement('button');b.id='adminTab';b.textContent='⚙ ADMIN PANEL';b.onclick=()=>openPanel('admin');tabs.appendChild(b);
+ }
+}
 function loadAccount(){try{return {...DEFAULT_ACCOUNT(),...JSON.parse(localStorage.getItem('rankedAccount_'+user.id)||'{}')}}catch{return DEFAULT_ACCOUNT()}}
 function saveAccount(){if(user)localStorage.setItem('rankedAccount_'+user.id,JSON.stringify(account));updateAccountUI()}
 function updateAccountUI(){$('crystals').textContent=account.sc+' SC';$('level').textContent='LEVEL '+account.level}
 async function checkAdmin(){isAdmin=false;try{const {data,error}=await sb.from('admins').select('user_id').eq('user_id',user.id).maybeSingle();if(!error&&data)isAdmin=true}catch{}}
-async function logout(){await sb.auth.signOut();user=null;profile=null;account={};stopLobby3D();$('lobby').classList.add('hidden');$('auth').classList.remove('hidden');$('password').value='';authMode('login')}
+async function logout(){if(eventRefreshTimer){clearInterval(eventRefreshTimer);eventRefreshTimer=null}await sb.auth.signOut();user=null;profile=null;account={};stopLobby3D();$('lobby').classList.add('hidden');$('auth').classList.remove('hidden');$('password').value='';authMode('login')}
 window.logout=logout;
 function addXP(n){account.xp+=n;while(account.xp>=account.level*500){account.xp-=account.level*500;account.level++;account.sc+=50;notify('LEVEL UP! +50 SC')}saveAccount()}
 function notify(t){const el=$('toast');if(el){el.textContent=t;el.style.opacity=1;setTimeout(()=>el.style.opacity=0,1800)}}
-function openPanel(which){const c=$('modalContent');$('modalTitle').textContent=which.toUpperCase();$('modal').classList.remove('hidden');if(which==='pass'){let rows='';for(let i=1;i<=10;i++){const free=i<=6?i*100:0,plus=i*160;rows+=`<div class="item"><b>LEVEL ${i}</b><p>FREE: ${free?free+' SC':'XP reward'}</p><p>PLUS: ${plus} SC</p><button onclick="claimReward(${i},false)">CLAIM FREE</button><button onclick="claimReward(${i},true)">CLAIM PLUS</button></div>`}c.innerHTML=`<p>Level ${account.level} · ${account.xp} / ${account.level*500} XP</p><p>STORM PASS+ costs 1,500 SC each season.</p><button onclick="buyPass()">BUY STORM PASS+ — 1,500 SC</button><div class="grid">${rows}</div>`}else if(which==='shop'){c.innerHTML='<p>Your balance: '+account.sc+' SC</p><div class="grid">'+SKINS.filter(s=>s.id!=='classic').map(s=>`<div class="item"><b>${s.name}</b><p>${s.price} SC</p><button onclick="buySkin('${s.id}')">BUY</button></div>`).join('')+'</div>'}else if(which==='skins'){c.innerHTML='<div class="grid">'+SKINS.map(s=>`<div class="item"><b>${s.name}</b><p>${account.ownedSkins.includes(s.id)?'OWNED':s.price+' SC'}</p><button onclick="equipSkin('${s.id}')">${account.skin===s.id?'EQUIPPED':'EQUIP'}</button></div>`).join('')+'</div>'}else if(which==='codes'){c.innerHTML='<p>Enter a redeem code</p><input id="redeemInput" placeholder="CODE"><button onclick="redeemCode()">REDEEM</button><p class="muted">Een code kan maar één keer per account gebruikt worden.</p>'}else if(which==='stats'){c.innerHTML=`<p>Username: ${escapeHTML(profile.username)}</p><p>Level: ${account.level} · Wins: ${account.wins} · Eliminations: ${account.elims}</p><p>Matches: ${account.matches} · XP: ${account.xp} · Storm Crystals: ${account.sc}</p>`}else if(which==='events'){c.innerHTML=`<p id="eventText">Live events worden geladen...</p>${isAdmin?'<h3>ADMIN EVENT CONTROL</h3><select id="eventSelect"><option>DOUBLE XP</option><option>DOUBLE CRYSTALS</option><option>SUPER CHESTS</option></select><input id="eventMinutes" type="number" min="1" max="180" value="15"><button onclick="publishEvent()">PUBLISH EVENT</button>':''}`;loadEvents()}}
+function openPanel(which){
+ const c=$('modalContent');$('modalTitle').textContent=which.toUpperCase();$('modal').classList.remove('hidden');
+ if(which==='pass'){
+  let rows='';for(let i=1;i<=10;i++){const free=i<=6?i*100:0,plus=i*160;rows+=`<div class="item"><b>LEVEL ${i}</b><p>FREE: ${free?free+' SC':'XP reward'}</p><p>PLUS: ${plus} SC</p><button onclick="claimReward(${i},false)">CLAIM FREE</button><button onclick="claimReward(${i},true)">CLAIM PLUS</button></div>`}
+  c.innerHTML=`<p>Level ${account.level} · ${account.xp} / ${account.level*500} XP</p><p>STORM PASS+ costs 1,500 SC each season.</p><button onclick="buyPass()">BUY STORM PASS+ — 1,500 SC</button><div class="grid">${rows}</div>`;
+ }else if(which==='shop'){
+  c.innerHTML='<p>Your balance: '+account.sc+' SC</p><div class="grid">'+SKINS.filter(s=>s.id!=='classic').map(s=>`<div class="item"><b>${s.name}</b><p>${s.price} SC</p><button onclick="buySkin('${s.id}')">BUY</button></div>`).join('')+'</div>';
+ }else if(which==='skins'){
+  c.innerHTML='<div class="grid">'+SKINS.map(s=>`<div class="item"><b>${s.name}</b><p>${account.ownedSkins.includes(s.id)?'OWNED':s.price+' SC'}</p><button onclick="equipSkin('${s.id}')">${account.skin===s.id?'EQUIPPED':'EQUIP'}</button></div>`).join('')+'</div>';
+ }else if(which==='codes'){
+  c.innerHTML='<p>Enter a redeem code</p><input id="redeemInput" placeholder="CODE"><button onclick="redeemCode()">REDEEM</button><p class="muted">Een code kan maar één keer per account gebruikt worden.</p>';
+ }else if(which==='stats'){
+  c.innerHTML=`<p>Username: ${escapeHTML(profile.username)}</p><p>Level: ${account.level} · Wins: ${account.wins} · Eliminations: ${account.elims}</p><p>Matches: ${account.matches} · XP: ${account.xp} · Storm Crystals: ${account.sc}</p>`;
+ }else if(which==='events'){
+  c.innerHTML=`<div class="eventLiveCard"><div class="eventStatus">● ISLAND LIVE EVENTS</div><h3>Wat gebeurt er op het eiland?</h3><p class="muted">Actieve events verschijnen hier én als grote banner in de lobby. De lijst ververst automatisch.</p></div><div id="eventText">Live events worden geladen...</div>${isAdmin?adminEventForm():''}`;
+  loadEvents();
+ }else if(which==='admin'){
+  if(!isAdmin){c.innerHTML='<p>Geen toegang. Alleen geregistreerde admins kunnen dit paneel openen.</p>';return}
+  c.innerHTML=adminDashboard();
+  loadEvents();
+ }
+}
+function adminEventForm(){
+ return `<div class="eventAdmin">
+  <h3>⚡ HOST A LIVE EVENT</h3>
+  <p class="muted">Maak een event zichtbaar voor iedereen die de game opent. Kies het type en hoelang het actief blijft.</p>
+  <label for="eventTitle">EVENT TITLE</label><input id="eventTitle" maxlength="48" placeholder="BIJVOORBEELD: DOUBLE XP WEEKEND">
+  <label for="eventDescription">EVENT MESSAGE</label><input id="eventDescription" maxlength="140" placeholder="Iedereen verdient dubbele XP!">
+  <label for="eventSelect">EVENT TYPE</label><select id="eventSelect"><option value="double_xp">DOUBLE XP</option><option value="double_crystals">DOUBLE CRYSTALS</option><option value="super_chests">SUPER CHESTS</option><option value="shield_boost">SHIELD BOOST</option><option value="community_event">COMMUNITY EVENT</option></select>
+  <label for="eventMinutes">DURATION (MINUTES)</label><input id="eventMinutes" type="number" min="1" max="1440" value="30">
+  <button style="width:100%;font-size:17px" onclick="publishEvent()">🚀 PUBLISH LIVE EVENT</button>
+  <p class="muted">Na publiceren verschijnt het event direct in de lobby. Een event verloopt automatisch na de ingestelde tijd.</p>
+ </div><div class="eventAdmin"><h3>🛠 ADMIN TOOLS</h3><p class="muted">Gebruik het live eventbeheer hieronder om je actieve events te controleren.</p><button class="secondary" onclick="loadEvents()">REFRESH EVENTS</button></div>`;
+}
+function adminDashboard(){
+ return `<div class="eventLiveCard"><div class="eventStatus">● ADMIN ACCESS GRANTED</div><h3>RANKED ISLAND CONTROL ROOM</h3><p>Welkom in het adminpanel. Hier kun je live events hosten en controleren.</p></div>${adminEventForm()}<div id="eventText">Events worden geladen...</div>`;
+}
 window.openPanel=openPanel;
 function closePanel(){$('modal').classList.add('hidden')}window.closePanel=closePanel;
 function buyPass(){if(account.passPlus){notify('Pass+ is already active this season');return}if(account.sc<1500){notify('Not enough Storm Crystals');return}account.sc-=1500;account.passPlus=true;saveAccount();openPanel('pass')}
@@ -85,9 +148,58 @@ function buySkin(id){const s=SKINS.find(x=>x.id===id);if(!s||account.ownedSkins.
 function equipSkin(id){if(!account.ownedSkins.includes(id)){notify('Skin not owned');return}account.skin=id;saveAccount();openPanel('skins');if(lobbyAvatar)lobbyAvatar.material.color.setHex(SKINS.find(s=>s.id===id).color)}
 function redeemCode(){const code=$('redeemInput').value.trim().toUpperCase();const rewards={'ISLAND2026':250,'RANKEDSTART':150,'STORMSEASON1':300};if(account.redeemed.includes(code)){notify('Code already used');return}if(!rewards[code]){notify('Invalid code');return}account.redeemed.push(code);account.sc+=rewards[code];saveAccount();notify('Code redeemed: +'+rewards[code]+' SC');openPanel('codes')}
 window.claimReward=claimReward;window.buyPass=buyPass;window.buySkin=buySkin;window.equipSkin=equipSkin;window.redeemCode=redeemCode;
-async function loadEvents(){try{const {data,error}=await sb.from('live_events').select('*').order('created_at',{ascending:false}).limit(5);if(error)throw error;$('eventText').innerHTML=data.length?data.map(e=>`<p><b>${escapeHTML(e.title||e.event_type)}</b> · ${new Date(e.ends_at).toLocaleString()}</p>`).join(''):'No active events.'}catch{$('eventText').textContent='Live events table is not configured yet in Supabase.'}}
-async function publishEvent(){if(!isAdmin)return;const type=$('eventSelect').value,mins=Math.max(1,Math.min(180,Number($('eventMinutes').value)||15));const end=new Date(Date.now()+mins*60000).toISOString();const {error}=await sb.from('live_events').insert({title:type,event_type:type.toLowerCase().replaceAll(' ','_'),multiplier:2,starts_at:new Date().toISOString(),ends_at:end,created_by:user.id});if(error)notify('Could not publish: '+error.message);else{notify('Event published');loadEvents()}}
-window.publishEvent=publishEvent;window.startGame=startGame;window.backLobby=backLobby;
+let eventRefreshTimer=null;
+function eventIsActive(e){
+ const now=Date.now(),begin=e.starts_at?new Date(e.starts_at).getTime():0,finish=e.ends_at?new Date(e.ends_at).getTime():0;
+ return begin<=now&&finish>now;
+}
+function renderLiveBanner(events){
+ const active=events.filter(eventIsActive).sort((a,b)=>new Date(a.ends_at)-new Date(b.ends_at));
+ const banner=$('liveEventBanner');
+ if(!banner)return;
+ if(!active.length){banner.style.display='none';return}
+ const e=active[0];
+ $('liveEventName').textContent=e.title||String(e.event_type||'LIVE EVENT').replaceAll('_',' ').toUpperCase();
+ $('liveEventDetails').textContent=(e.description||'A special event is happening on the island!')+' · Ends '+new Date(e.ends_at).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'});
+ banner.style.display='block';
+}
+async function loadEvents(){
+ const target=$('eventText');
+ try{
+  const {data,error}=await sb.from('live_events').select('*').order('created_at',{ascending:false}).limit(20);
+  if(error)throw error;
+  const events=data||[];renderLiveBanner(events);
+  if(target){
+   const active=events.filter(eventIsActive);
+   const upcoming=events.filter(e=>e.starts_at&&new Date(e.starts_at).getTime()>Date.now());
+   const cards=[...active,...upcoming,...events.filter(e=>!eventIsActive(e)&&!upcoming.includes(e))].slice(0,12);
+   target.innerHTML=cards.length?cards.map(e=>{
+    const activeNow=eventIsActive(e),title=escapeHTML(e.title||e.event_type||'LIVE EVENT'),desc=escapeHTML(e.description||'Special island event');
+    const start=e.starts_at?new Date(e.starts_at).toLocaleString():'';
+    const finish=e.ends_at?new Date(e.ends_at).toLocaleString():'';
+    return `<div class="eventLiveCard"><div class="eventStatus">${activeNow?'● LIVE NOW':new Date(e.starts_at||0).getTime()>Date.now()?'◷ UPCOMING':'✓ ENDED'}</div><h3>${title}</h3><p>${desc}</p><p class="muted">${activeNow?'Ends: '+finish:'Starts: '+start+' · Ends: '+finish}</p></div>`;
+   }).join(''):'<div class="item"><b>NO LIVE EVENTS RIGHT NOW</b><p class="muted">Check back later for island events.</p></div>';
+  }
+ }catch(err){
+  if(target)target.textContent='Live events konden niet geladen worden. Controleer of de live_events-tabel en Supabase policies zijn ingesteld.';
+  console.warn('Live events:',err.message);
+ }
+}
+async function publishEvent(){
+ if(!isAdmin){notify('Admin access required');return}
+ const type=$('eventSelect')?.value||'community_event';
+ const title=($('eventTitle')?.value||type.replaceAll('_',' ').toUpperCase()).trim().slice(0,48);
+ const description=($('eventDescription')?.value||'A special event is happening on the island!').trim().slice(0,140);
+ const mins=Math.max(1,Math.min(1440,Number($('eventMinutes')?.value)||30));
+ const start=new Date(),end=new Date(Date.now()+mins*60000);
+ const payload={title,description,event_type:type,multiplier:2,starts_at:start.toISOString(),ends_at:end.toISOString(),created_by:user.id};
+ const {error}=await sb.from('live_events').insert(payload);
+ if(error){notify('Publish failed: '+error.message);return}
+ notify('LIVE EVENT PUBLISHED!');
+ await loadEvents();
+}
+window.publishEvent=publishEvent;
+window.loadEvents=loadEvents;window.startGame=startGame;window.backLobby=backLobby;
 
 /* 3D lobby scene */
 let lobbyRenderer,lobbyScene,lobbyCamera,lobbyAvatar,lobbyFrame=0;
@@ -96,19 +208,159 @@ function renderLobby(){if(!lobbyFrame||!lobbyRenderer)return;requestAnimationFra
 function stopLobby3D(){lobbyFrame=0;if(lobbyRenderer){lobbyRenderer.dispose();lobbyRenderer=null}}
 
 /* Solo battle royale */
-const WORLD=360;let scene,camera,renderer,clock,player,bus,bots=[],trees=[],chests=[],keys={},health=100,shield=50,elims=0,matchXP=0,weapon=null,started=false,busPhase=true,vy=0,canJump=true,yaw=0,pitch=0,lastShot=0,zoneRadius=340,zoneClock=0,toastClock=0;
+const WORLD=650;let scene,camera,renderer,clock,player,bus,bots=[],trees=[],chests=[],buildings=[],keys={},health=100,shield=100,elims=0,matchXP=0,weapon=null,started=false,busPhase=true,vy=0,canJump=true,yaw=0,pitch=0,lastShot=0,zoneRadius=620,zoneClock=0,toastClock=0,gameEventsAttached=false;
 function startGame(){if(!user){alert('Je moet eerst inloggen!');$('auth').classList.remove('hidden');return}closePanel();$('lobby').classList.add('hidden');$('game').style.display='block';$('end').classList.add('hidden');if(!renderer)initGame();resetGame();started=true;clock.start();renderer.domElement.requestPointerLock();animate()}
-function initGame(){clock=new THREE.Clock();scene=new THREE.Scene();scene.background=new THREE.Color(0x8bd5ed);scene.fog=new THREE.Fog(0x8bd5ed,220,850);camera=new THREE.PerspectiveCamera(75,innerWidth/innerHeight,.1,1200);renderer=new THREE.WebGLRenderer({antialias:true});renderer.setSize(innerWidth,innerHeight);renderer.setPixelRatio(Math.min(devicePixelRatio,2));$('game').insertBefore(renderer.domElement,$('game').firstChild);scene.add(new THREE.HemisphereLight(0xffffff,0x536b3b,2));const sun=new THREE.DirectionalLight(0xffffff,2);sun.position.set(100,150,70);scene.add(sun);const land=new THREE.Mesh(new THREE.CylinderGeometry(WORLD-8,WORLD,10,96),new THREE.MeshStandardMaterial({color:0x4b9b43}));land.position.y=-5;scene.add(land);const grass=new THREE.Mesh(new THREE.CircleGeometry(WORLD-8,96),new THREE.MeshStandardMaterial({color:0x65b94d}));grass.rotation.x=-Math.PI/2;grass.position.y=.1;scene.add(grass);const water=new THREE.Mesh(new THREE.CircleGeometry(600,80),new THREE.MeshStandardMaterial({color:0x258bc7}));water.rotation.x=-Math.PI/2;water.position.y=-10.2;scene.add(water);for(let i=0;i<420;i++){const a=Math.random()*Math.PI*2,r=15+Math.random()*(WORLD-30),g=new THREE.Group();const tr=new THREE.Mesh(new THREE.CylinderGeometry(.5,.7,4,7),new THREE.MeshStandardMaterial({color:0x79502c}));tr.position.y=2;const le=new THREE.Mesh(new THREE.ConeGeometry(3,7,8),new THREE.MeshStandardMaterial({color:0x176b35}));le.position.y=7;g.add(tr,le);g.position.set(Math.cos(a)*r,0,Math.sin(a)*r);scene.add(g);trees.push(g)}player=new THREE.Group();const body=new THREE.Mesh(new THREE.CapsuleGeometry(.62,1.1,4,8),new THREE.MeshStandardMaterial({color:SKINS.find(s=>s.id===account.skin)?.color||0x287bff}));body.position.y=1.1;player.add(body);const head=new THREE.Mesh(new THREE.SphereGeometry(.4,12,12),new THREE.MeshStandardMaterial({color:0xffc99b}));head.position.y=2.2;player.add(head);scene.add(player);bus=new THREE.Group();const hull=new THREE.Mesh(new THREE.BoxGeometry(12,3,5),new THREE.MeshStandardMaterial({color:0x2776c7}));bus.add(hull);const balloon=new THREE.Mesh(new THREE.SphereGeometry(4,16,12),new THREE.MeshStandardMaterial({color:0xf4aa35}));balloon.position.y=4;bus.add(balloon);bus.position.set(-WORLD*.8,90,WORLD*.55);scene.add(bus);window.addEventListener('keydown',e=>{keys[e.code]=true;if(e.code==='Space')e.preventDefault()});window.addEventListener('keyup',e=>keys[e.code]=false);renderer.domElement.addEventListener('click',()=>{if(document.pointerLockElement!==renderer.domElement)renderer.domElement.requestPointerLock();else shoot()});document.addEventListener('mousemove',e=>{if(document.pointerLockElement===renderer.domElement){yaw-=e.movementX*.0018;pitch=Math.max(-.8,Math.min(.8,pitch-e.movementY*.0018))}});window.addEventListener('resize',resizeGame)}
-function resetGame(){bots=[];chests=[];trees=trees;health=100;shield=50;elims=0;matchXP=0;weapon=null;busPhase=true;vy=0;canJump=true;zoneRadius=340;zoneClock=0;player.position.set(0,90,0);for(let i=0;i<18;i++){const b=new THREE.Group();const m=new THREE.Mesh(new THREE.CapsuleGeometry(.55,1,4,8),new THREE.MeshStandardMaterial({color:[0xe34b42,0x8c48d9,0xe5a52d,0x35a7a0][i%4]}));m.position.y=1;b.add(m);const h=new THREE.Mesh(new THREE.SphereGeometry(.37,12,10),new THREE.MeshStandardMaterial({color:0xffc99b}));h.position.y=2.1;b.add(h);const a=Math.random()*Math.PI*2;b.userData={hp:100,delay:2+Math.random()*10,off:new THREE.Vector3(Math.cos(a)*12,0,Math.sin(a)*8),fall:0,dir:Math.random()*6.28,fire:1+Math.random()*2};b.position.copy(bus.position).add(b.userData.off);scene.add(b);bots.push(b)}for(let i=0;i<28;i++){const a=Math.random()*Math.PI*2,r=15+Math.random()*(WORLD-30),c=new THREE.Group();const box=new THREE.Mesh(new THREE.BoxGeometry(2.8,1.8,2),new THREE.MeshStandardMaterial({color:0xb87926}));box.position.y=1;c.add(box);const lid=new THREE.Mesh(new THREE.BoxGeometry(3,.4,2.2),new THREE.MeshStandardMaterial({color:0xffd35a}));lid.position.y=2;c.add(lid);c.position.set(Math.cos(a)*r,0,Math.sin(a)*r);c.userData.open=false;scene.add(c);chests.push(c)}updateHUD()}
+function initGame(){clock=new THREE.Clock();scene=new THREE.Scene();scene.background=new THREE.Color(0x8bd5ed);scene.fog=new THREE.Fog(0x8bd5ed,380,1450);camera=new THREE.PerspectiveCamera(75,innerWidth/innerHeight,.1,1200);renderer=new THREE.WebGLRenderer({antialias:true});renderer.setSize(innerWidth,innerHeight);renderer.setPixelRatio(Math.min(devicePixelRatio,2));$('game').insertBefore(renderer.domElement,$('game').firstChild);scene.add(new THREE.HemisphereLight(0xffffff,0x536b3b,2));const sun=new THREE.DirectionalLight(0xffffff,2);sun.position.set(100,150,70);scene.add(sun);const land=new THREE.Mesh(new THREE.CylinderGeometry(WORLD-8,WORLD,10,96),new THREE.MeshStandardMaterial({color:0x4b9b43}));land.position.y=-5;scene.add(land);const grass=new THREE.Mesh(new THREE.CircleGeometry(WORLD-8,96),new THREE.MeshStandardMaterial({color:0x65b94d}));grass.rotation.x=-Math.PI/2;grass.position.y=.1;scene.add(grass);const water=new THREE.Mesh(new THREE.CircleGeometry(1050,96),new THREE.MeshStandardMaterial({color:0x258bc7}));water.rotation.x=-Math.PI/2;water.position.y=-10.2;scene.add(water);for(let i=0;i<900;i++){const a=Math.random()*Math.PI*2,r=22+Math.random()*(WORLD-38),x=Math.cos(a)*r,z=Math.sin(a)*r;
+if(isNearSettlement(x,z,58))continue;
+const g=new THREE.Group();const tr=new THREE.Mesh(new THREE.CylinderGeometry(.5,.7,4,7),new THREE.MeshStandardMaterial({color:0x79502c}));tr.position.y=2;const le=new THREE.Mesh(new THREE.ConeGeometry(3,7,8),new THREE.MeshStandardMaterial({color:0x176b35}));le.position.y=7;g.add(tr,le);g.position.set(x,0,z);scene.add(g);trees.push(g)}
+createSettlements();
+for(let i=0;i<24;i++){const a=Math.random()*Math.PI*2,r=35+Math.random()*(WORLD-70);if(!isNearSettlement(Math.cos(a)*r,Math.sin(a)*r,65))makeChest(Math.cos(a)*r,Math.sin(a)*r)}
+player=new THREE.Group();const body=new THREE.Mesh(new THREE.CapsuleGeometry(.62,1.1,4,8),new THREE.MeshStandardMaterial({color:SKINS.find(s=>s.id===account.skin)?.color||0x287bff}));body.position.y=1.1;player.add(body);const head=new THREE.Mesh(new THREE.SphereGeometry(.4,12,12),new THREE.MeshStandardMaterial({color:0xffc99b}));head.position.y=2.2;player.add(head);scene.add(player);bus=new THREE.Group();const hull=new THREE.Mesh(new THREE.BoxGeometry(12,3,5),new THREE.MeshStandardMaterial({color:0x2776c7}));bus.add(hull);const balloon=new THREE.Mesh(new THREE.SphereGeometry(4,16,12),new THREE.MeshStandardMaterial({color:0xf4aa35}));balloon.position.y=4;bus.add(balloon);bus.position.set(-WORLD*.82,90,WORLD*.55);scene.add(bus);if(!gameEventsAttached){
+ window.addEventListener('keydown',e=>{if(['KeyW','KeyA','KeyS','KeyD','Space','KeyE'].includes(e.code))e.preventDefault();keys[e.code]=true});
+ window.addEventListener('keyup',e=>keys[e.code]=false);
+ window.addEventListener('blur',()=>{keys={}});
+ document.addEventListener('mousemove',e=>{if(document.pointerLockElement===renderer?.domElement){yaw-=e.movementX*.0018;pitch=Math.max(-.8,Math.min(.8,pitch-e.movementY*.0018))}});
+ window.addEventListener('resize',resizeGame);
+ gameEventsAttached=true;
+}
+renderer.domElement.addEventListener('click',()=>{if(document.pointerLockElement!==renderer.domElement)renderer.domElement.requestPointerLock();else shoot()});
+document.addEventListener('pointerlockchange',()=>{if(document.pointerLockElement!==renderer?.domElement)keys={}});
+}
+
+const SETTLEMENTS=[
+ {name:'PINE VILLAGE',x:-260,z:-230,count:7,kind:'house'},
+ {name:'HARBOR TOWN',x:285,z:-245,count:8,kind:'house'},
+ {name:'DUSTY DEPOT',x:-300,z:250,count:7,kind:'warehouse'},
+ {name:'STORM RESEARCH',x:270,z:260,count:6,kind:'lab'},
+ {name:'GREENFIELDS',x:20,z:390,count:6,kind:'farm'}
+];
+function isNearSettlement(x,z,margin=45){
+ return SETTLEMENTS.some(s=>Math.hypot(x-s.x,z-s.z)<margin);
+}
+function makeChest(x,z){
+ const roll=Math.random();
+ const rarity=roll<.48?'COMMON':roll<.76?'RARE':roll<.93?'EPIC':'LEGENDARY';
+ const colors={COMMON:0xb87926,RARE:0x287be0,EPIC:0x9a45d6,LEGENDARY:0xe7b52f};
+ const c=new THREE.Group();
+ const box=new THREE.Mesh(new THREE.BoxGeometry(2.8,1.6,2),new THREE.MeshStandardMaterial({color:colors[rarity],metalness:.25,roughness:.55}));
+ box.position.y=.9;c.add(box);
+ const lid=new THREE.Mesh(new THREE.BoxGeometry(3,.45,2.2),new THREE.MeshStandardMaterial({color:colors[rarity],metalness:.35,roughness:.4}));
+ lid.position.y=1.9;c.add(lid);
+ const glow=new THREE.PointLight(colors[rarity],.8,9);glow.position.y=2.5;c.add(glow);
+ c.position.set(x,0,z);c.userData={open:false,rarity};scene.add(c);chests.push(c);return c;
+}
+function makeBuilding(x,z,kind='house',rotation=0){
+ const g=new THREE.Group();
+ const width=kind==='warehouse'?19:kind==='lab'?16:12;
+ const depth=kind==='warehouse'?15:kind==='lab'?14:11;
+ const height=kind==='warehouse'?7:kind==='lab'?6:5.5;
+ const wallMat=new THREE.MeshStandardMaterial({color:kind==='lab'?0xb8c5ce:kind==='warehouse'?0x777f87:0xd5b98d});
+ const roofMat=new THREE.MeshStandardMaterial({color:kind==='lab'?0x426b83:kind==='warehouse'?0x39444d:0x8b4937});
+ const floor=new THREE.Mesh(new THREE.BoxGeometry(width,.35,depth),new THREE.MeshStandardMaterial({color:0x77715f}));
+ floor.position.y=.15;g.add(floor);
+ // Three solid walls plus two short front sections leave a clear doorway.
+ const back=new THREE.Mesh(new THREE.BoxGeometry(width,height,.55),wallMat);back.position.set(0,height/2,-depth/2);g.add(back);
+ const left=new THREE.Mesh(new THREE.BoxGeometry(.55,height,depth),wallMat);left.position.set(-width/2,height/2,0);g.add(left);
+ const right=new THREE.Mesh(new THREE.BoxGeometry(.55,height,depth),wallMat);right.position.set(width/2,height/2,0);g.add(right);
+ const sideWidth=(width-3.4)/2;
+ for(const sign of [-1,1]){const front=new THREE.Mesh(new THREE.BoxGeometry(sideWidth,height,.55),wallMat);front.position.set(sign*(3.4/2+sideWidth/2),height/2,depth/2);g.add(front)}
+ const roof=new THREE.Mesh(new THREE.BoxGeometry(width+1,.65,depth+1),roofMat);roof.position.y=height+.25;g.add(roof);
+ const doorTop=new THREE.Mesh(new THREE.BoxGeometry(3.4,.35,.65),roofMat);doorTop.position.set(0,height-.15,depth/2);g.add(doorTop);
+ // Windows add detail without blocking entry.
+ for(const side of [-1,1]){
+  const win=new THREE.Mesh(new THREE.BoxGeometry(.12,1.25,2),new THREE.MeshStandardMaterial({color:0x80cde4,metalness:.25,roughness:.2}));
+  win.position.set(side*(width/2+.04),height*.62,-1);g.add(win);
+ }
+ g.position.set(x,0,z);g.rotation.y=rotation;scene.add(g);buildings.push(g);
+ const localChest=new THREE.Vector3(0,0,-depth*.12).applyAxisAngle(new THREE.Vector3(0,1,0),rotation);
+ makeChest(x+localChest.x,z+localChest.z);
+ return g;
+}
+function createSettlements(){
+ buildings=[];
+ for(const s of SETTLEMENTS){
+  const label=new THREE.Mesh(new THREE.BoxGeometry(1,.1,1),new THREE.MeshStandardMaterial({color:0xffffff}));
+  label.position.set(s.x,0,s.z);scene.add(label);
+  for(let i=0;i<s.count;i++){
+   const angle=(i/s.count)*Math.PI*2+(Math.random()-.5)*.3;
+   const radius=13+Math.random()*24;
+   const x=s.x+Math.cos(angle)*radius,z=s.z+Math.sin(angle)*radius;
+   makeBuilding(x,z,s.kind,Math.random()*Math.PI*2);
+  }
+  // A few extra outdoor supply crates around each named area.
+  for(let j=0;j<3;j++){const a=Math.random()*Math.PI*2,r=42+Math.random()*18;makeChest(s.x+Math.cos(a)*r,s.z+Math.sin(a)*r)}
+ }
+}
+
+function resetGame(){
+ bots=[];chests.forEach(c=>{c.userData.open=false;c.visible=true});health=100;shield=100;elims=0;matchXP=0;weapon=null;busPhase=true;vy=0;canJump=true;zoneRadius=620;zoneClock=0;yaw=0;pitch=0;
+ player.position.set(0,90,0);bus.position.set(-WORLD*.82,90,WORLD*.55);
+ // Indoor and outdoor chests are reset at the start of each match.
+ for(let i=0;i<18;i++){
+  const b=new THREE.Group();
+  const body=new THREE.Mesh(new THREE.CapsuleGeometry(.55,1,4,8),new THREE.MeshStandardMaterial({color:[0xe34b42,0x8c48d9,0xe5a52d,0x35a7a0][i%4]}));
+  body.position.y=1;b.add(body);
+  const head=new THREE.Mesh(new THREE.SphereGeometry(.37,12,10),new THREE.MeshStandardMaterial({color:0xffc99b}));head.position.y=2.1;b.add(head);
+  const a=Math.random()*Math.PI*2;
+  b.userData={hp:100,delay:1+Math.random()*7,off:new THREE.Vector3(Math.cos(a)*12,0,Math.sin(a)*8),fall:0,dir:Math.random()*6.28,fire:1+Math.random()*2,hasWeapon:false,targetChest:null,gun:null};
+  b.position.copy(bus.position).add(b.userData.off);scene.add(b);bots.push(b);
+ }
+ updateHUD();
+}
 function updateHUD(){$('botsLeft').textContent=bots.length;$('hp').textContent=Math.max(0,Math.round(health));$('shield').textContent=Math.max(0,Math.round(shield));$('elims').textContent=elims;$('xp').textContent=matchXP;$('weaponHud').textContent=weapon?.name||'PICKAXE'}
 function showToast(t){$('toast').textContent=t;$('toast').style.opacity=1;toastClock=2}
 function shoot(){if(!started||busPhase||!weapon){if(!weapon)showToast('Open a chest with E to find a weapon');return}if(performance.now()-lastShot<weapon.rate*1000)return;lastShot=performance.now();const d=new THREE.Vector3();camera.getWorldDirection(d);const ray=new THREE.Raycaster(camera.position.clone(),d,0,weapon.range),botParts=[],treeParts=[];bots.forEach(b=>b.children.forEach(p=>botParts.push(p)));trees.forEach(t=>t.children.forEach(p=>treeParts.push(p)));const hit=ray.intersectObjects([...botParts,...treeParts],false)[0];if(hit){const target=bots.find(b=>b.children.includes(hit.object));if(target){target.userData.hp-=weapon.damage;if(target.userData.hp<=0){scene.remove(target);bots=bots.filter(b=>b!==target);elims++;matchXP+=100;addXP(100);showToast('ELIMINATION +100 XP');updateHUD();if(!bots.length)endGame(true)}}}}
-function openChest(){let c=null,d=5;for(const x of chests){if(x.userData.open)continue;const n=x.position.distanceTo(player.position);if(n<d){d=n;c=x}}if(!c){showToast('No chest nearby');return}c.userData.open=true;c.visible=false;const r=Math.random();weapon=r>.85?WEAPONS[2]:r>.5?WEAPONS[1]:WEAPONS[0];matchXP+=25;updateHUD();showToast('CHEST OPENED: '+weapon.name)}
-function botsUpdate(dt){for(const b of [...bots]){if(!bots.includes(b))continue;const u=b.userData;if(u.delay>0){u.delay-=dt;b.position.set(bus.position.x+u.off.x,bus.position.y,bus.position.z+u.off.z);continue}if(b.position.y>0){u.fall+=24*dt;b.position.y=Math.max(0,b.position.y-u.fall*dt);continue}if(busPhase)continue;const dx=player.position.x-b.position.x,dz=player.position.z-b.position.z,dist=Math.hypot(dx,dz);if(dist<42){u.dir=Math.atan2(dz,dx);if(dist>12){b.position.x+=Math.cos(u.dir)*3.5*dt;b.position.z+=Math.sin(u.dir)*3.5*dt}else{u.fire-=dt;if(u.fire<=0){if(shield>0)shield=Math.max(0,shield-5);else health-=5;u.fire=1.6;updateHUD();if(health<=0)endGame(false)}}}else{u.dir+=(Math.random()-.5)*dt;b.position.x+=Math.cos(u.dir)*2*dt;b.position.z+=Math.sin(u.dir)*2*dt}}}
+function openChest(){
+ let c=null,d=7;
+ for(const x of chests){if(x.userData.open)continue;const n=x.position.distanceTo(player.position);if(n<d){d=n;c=x}}
+ if(!c){showToast('No chest nearby');return}
+ c.userData.open=true;c.visible=false;
+ const rarity=c.userData.rarity,roll=Math.random();
+ if(roll<.22){shield=Math.min(200,shield+(rarity==='LEGENDARY'?75:rarity==='EPIC'?55:rarity==='RARE'?40:25));showToast(rarity+' CHEST: SHIELD UP!')}
+ else if(roll<.34){health=Math.min(100,health+35);showToast(rarity+' CHEST: HEALTH RESTORED!')}
+ else{
+  const index=rarity==='LEGENDARY'?3:rarity==='EPIC'?2:rarity==='RARE'?1:0;
+  weapon=WEAPONS[index];showToast(rarity+' CHEST: '+weapon.name);
+ }
+ matchXP+=25;updateHUD();
+}
+function botsUpdate(dt){
+ for(const b of [...bots]){
+  if(!bots.includes(b))continue;
+  const u=b.userData;
+  if(u.delay>0){u.delay-=dt;b.position.set(bus.position.x+u.off.x,bus.position.y+u.off.z*0,bus.position.z+u.off.z);continue}
+  if(b.position.y>0){u.fall+=24*dt;b.position.y=Math.max(0,b.position.y-u.fall*dt);continue}
+  if(busPhase)continue;
+  // Bots search for and open a nearby unopened chest before they can attack.
+  if(!u.hasWeapon){
+   if(!u.targetChest||u.targetChest.userData.open){
+    u.targetChest=chests.filter(c=>!c.userData.open).sort((a,b2)=>a.position.distanceToSquared(b.position)-b2.position.distanceToSquared(b.position))[0]||null;
+   }
+   if(u.targetChest){
+    const dx=u.targetChest.position.x-b.position.x,dz=u.targetChest.position.z-b.position.z,dist=Math.hypot(dx,dz);
+    if(dist>3.5){b.position.x+=dx/dist*5*dt;b.position.z+=dz/dist*5*dt}
+    else{
+     u.targetChest.userData.open=true;u.targetChest.visible=false;u.hasWeapon=true;
+     const gun=new THREE.Mesh(new THREE.BoxGeometry(.25,.25,1.4),new THREE.MeshStandardMaterial({color:0x252a32,metalness:.6}));
+     gun.position.set(.55,1.35,-.25);b.add(gun);u.gun=gun;
+    }
+   }
+   continue;
+  }
+  const dx=player.position.x-b.position.x,dz=player.position.z-b.position.z,dist=Math.hypot(dx,dz);
+  if(dist<65){
+   u.dir=Math.atan2(dz,dx);
+   if(dist>15){b.position.x+=Math.cos(u.dir)*4.2*dt;b.position.z+=Math.sin(u.dir)*4.2*dt}
+   else{u.fire-=dt;if(u.fire<=0){if(shield>0)shield=Math.max(0,shield-4);else health-=4;u.fire=1.8;updateHUD();if(health<=0)endGame(false)}}
+  }else{
+   u.dir+=(Math.random()-.5)*dt;b.position.x+=Math.cos(u.dir)*2.4*dt;b.position.z+=Math.sin(u.dir)*2.4*dt;
+  }
+ }
+}
 function endGame(win){if(!started)return;started=false;document.exitPointerLock();account.matches++;account.elims+=elims;if(win){account.wins++;account.sc+=250;matchXP+=500}addXP(matchXP);saveAccount();$('endTitle').textContent=win?'RANKED ROYALE!':'GAME OVER';$('endSubtitle').textContent=win?'YOU ARE THE LAST PLAYER':'BETTER LUCK NEXT TIME';$('endElims').textContent=elims;$('endXP').textContent=matchXP;$('game').style.display='none';$('end').classList.remove('hidden')}
-function animate(){if(!started)return;requestAnimationFrame(animate);const dt=Math.min(clock.getDelta(),.05);if(busPhase){bus.position.x+=dt*19;bus.position.z-=dt*13;player.position.copy(bus.position);player.position.y+=2;if(keys.Space){busPhase=false;showToast('YOU JUMPED!')}if(bus.position.x>WORLD*.85){busPhase=false;showToast('JUMP FROM THE BUS!')}}else{const f=new THREE.Vector3(-Math.sin(yaw),0,-Math.cos(yaw)),r=new THREE.Vector3(Math.cos(yaw),0,-Math.sin(yaw)),m=new THREE.Vector3();if(keys.KeyW)m.add(f);if(keys.KeyS)m.sub(f);if(keys.KeyA)m.sub(r);if(keys.KeyD)m.add(r);if(m.length())player.position.addScaledVector(m.normalize(),12*dt);if(keys.Space&&canJump){vy=9;canJump=false}vy-=23*dt;player.position.y+=vy*dt;if(player.position.y<0){player.position.y=0;vy=0;canJump=true}if(keys.KeyE){openChest();keys.KeyE=false}zoneClock+=dt;if(zoneClock>35&&zoneRadius>45){zoneClock=0;zoneRadius=Math.max(40,zoneRadius-45);showToast('STORM IS SHRINKING!')}if(Math.hypot(player.position.x,player.position.z)>zoneRadius){health-=4*dt;if(health<=0)endGame(false)}$('zoneFill').style.width=(zoneRadius/340*100)+'%'}botsUpdate(dt);const target=new THREE.Vector3(player.position.x+Math.sin(yaw)*9,player.position.y+4-Math.sin(pitch)*3,player.position.z+Math.cos(yaw)*9);camera.position.lerp(target,Math.min(1,dt*7));camera.lookAt(player.position.x,player.position.y+1.3,player.position.z);if(toastClock>0){toastClock-=dt;if(toastClock<=0)$('toast').style.opacity=0}renderer.render(scene,camera)}
+function animate(){if(!started)return;requestAnimationFrame(animate);const dt=Math.min(clock.getDelta(),.05);if(busPhase){bus.position.x+=dt*19;bus.position.z-=dt*13;player.position.copy(bus.position);player.position.y+=2;if(keys.Space){busPhase=false;showToast('YOU JUMPED!')}if(bus.position.x>WORLD*.85){busPhase=false;showToast('JUMP FROM THE BUS!')}}else{const f=new THREE.Vector3(-Math.sin(yaw),0,-Math.cos(yaw)),r=new THREE.Vector3(Math.cos(yaw),0,-Math.sin(yaw)),m=new THREE.Vector3();if(keys.KeyW)m.add(f);if(keys.KeyS)m.sub(f);if(keys.KeyA)m.sub(r);if(keys.KeyD)m.add(r);if(m.length())player.position.addScaledVector(m.normalize(),12*dt);if(keys.Space&&canJump){vy=9;canJump=false}vy-=23*dt;player.position.y+=vy*dt;if(player.position.y<0){player.position.y=0;vy=0;canJump=true}if(keys.KeyE){openChest();keys.KeyE=false}zoneClock+=dt;if(zoneClock>45&&zoneRadius>65){zoneClock=0;zoneRadius=Math.max(55,zoneRadius-65);showToast('STORM IS SHRINKING!')}if(Math.hypot(player.position.x,player.position.z)>zoneRadius){health-=4*dt;if(health<=0)endGame(false)}$('zoneFill').style.width=(zoneRadius/620*100)+'%'}botsUpdate(dt);const target=new THREE.Vector3(player.position.x+Math.sin(yaw)*10,player.position.y+4-Math.sin(pitch)*3,player.position.z+Math.cos(yaw)*10);camera.position.lerp(target,Math.min(1,dt*7));camera.lookAt(player.position.x,player.position.y+1.3,player.position.z);if(toastClock>0){toastClock-=dt;if(toastClock<=0)$('toast').style.opacity=0}renderer.render(scene,camera)}
 function resizeGame(){if(camera&&renderer){camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight)}if(lobbyRenderer){lobbyCamera.aspect=innerWidth/innerHeight;lobbyCamera.updateProjectionMatrix();lobbyRenderer.setSize(innerWidth,innerHeight)}}
-function backLobby(){started=false;document.exitPointerLock();$('game').style.display='none';$('end').classList.add('hidden');$('lobby').classList.remove('hidden');if(renderer){renderer.dispose();renderer.domElement.remove();renderer=null;scene=null;trees=[];bots=[];chests=[]}startLobby3D()}
+function backLobby(){started=false;document.exitPointerLock();$('game').style.display='none';$('end').classList.add('hidden');$('lobby').classList.remove('hidden');if(renderer){renderer.dispose();renderer.domElement.remove();renderer=null;scene=null;trees=[];bots=[];chests=[];buildings=[]}startLobby3D()}
 window.addEventListener('DOMContentLoaded',async()=>{try{sb=window.supabaseCreateClient(SUPABASE_URL,SUPABASE_PUBLISHABLE_KEY);const {data}=await sb.auth.getSession();if(data.session?.user)await afterLogin(data.session.user);sb.auth.onAuthStateChange(async(_event,session)=>{if(session?.user&&!user)await afterLogin(session.user)})}catch(e){message('Supabase init error: '+e.message)}});
 function escapeHTML(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
 </script>
