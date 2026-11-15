@@ -284,12 +284,11 @@ input,select{padding:10px;border-radius:6px;border:0;margin:7px;width:90%;max-wi
 <script type="module">
 import * as THREE from 'three';
 import {createClient} from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm';
-
 // =====================================
 // SUPABASE CONFIGURATION
 // =====================================
-const SUPABASE_URL='https://fgdrrlspmkixrkcnafio.supabase.co';
-const SUPABASE_KEY='sb_publishable_VKyG3FE6fFuPJRVX-U0h0A_VAzcPI_F';
+const SUPABASE_URL='https://oejybzksvgvekypybnqn.supabase.co';
+const SUPABASE_KEY='sb_publishable_LpxujKnl5sJmJR70OpZhmQ_Cg0CUT8V';
 const sb=createClient(SUPABASE_URL,SUPABASE_KEY);
 
 let currentUser=null;
@@ -305,6 +304,8 @@ const $=id=>document.getElementById(id);
 
 function authMessage(message){$('authMessage').textContent=message}
 function adminMessage(message){$('adminMessage').textContent=message}
+
+
 
 // =====================================
 // LIVE EVENT SYSTEM
