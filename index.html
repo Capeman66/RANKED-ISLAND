@@ -49,7 +49,7 @@ input,select{padding:10px;border-radius:6px;border:0;margin:7px;width:90%;max-wi
 .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(145px,1fr));gap:10px}
 .card{background:#263d56;border:1px solid #58728c;border-radius:10px;padding:12px;text-align:center}
 .preview{height:48px;border-radius:7px;margin-bottom:8px}
-.reward{background:#263d56;border:1px solid #58728c;border-radius:9px;padding:11px;margin:8px 0;display:flex;justify-content:space-between;align-items:center;gap:8px;text-align:left}
+.reward{background:#263d56;border:1px solid #58728c;border-radius:9px;padding:11px;margin:8px 0;display:flex;justify-content:space-between;align-items:center;gap:8px;text-align:left;overflow-wrap:anywhere}
 .bar{height:13px;background:#101010;border-radius:20px;overflow:hidden}
 .bar>div{height:100%;background:linear-gradient(90deg,#8c40e8,#42d9ff);width:0}
 #weaponHUD{position:absolute;bottom:50px;left:50%;transform:translateX(-50%);text-align:center;background:#111c;padding:9px 18px;border-radius:9px;z-index:3}
@@ -65,6 +65,12 @@ input,select{padding:10px;border-radius:6px;border:0;margin:7px;width:90%;max-wi
 #endTitle{font-size:clamp(28px,6vw,48px)}
 #endRank{color:#ffd34e;font-size:75px;font-weight:1000}
 #endMessage{color:#d5d8e8}
+#adminPanel{border:2px solid #b77aff}
+#adminPanel h2{color:#d4a1ff}
+#accountStatus{color:#63eaff;font-weight:bold}
+.adminPlayer{display:flex;justify-content:space-between;gap:8px;align-items:center;flex-wrap:wrap}
+.adminPlayer button{font-size:11px}
+#authMessage,#adminMessage{min-height:20px;overflow-wrap:anywhere}
 @media(max-width:600px){
  #miniMap{width:115px;height:115px;top:85px}
  #feed{top:210px;width:190px;font-size:10px}
@@ -91,6 +97,38 @@ input,select{padding:10px;border-radius:6px;border:0;margin:7px;width:90%;max-wi
  <h3>ONLY THE BEST SURVIVE</h3>
  <p>99 bots. One island. One winner.</p>
  <p class="currency">◆ <span id="lobbySC">0</span> STORM CRYSTALS</p>
+
+ <div class="panel" id="accountPanel">
+  <h2>STORM ACCOUNT</h2>
+  <p id="accountStatus">Checking account...</p>
+  <input id="authUsername" placeholder="USERNAME (REGISTER)" maxlength="24">
+  <input id="authEmail" type="email" placeholder="EMAIL">
+  <input id="authPassword" type="password" placeholder="PASSWORD">
+  <br>
+  <button id="registerButton">REGISTER</button>
+  <button id="loginButton">LOGIN</button>
+  <button id="logoutButton">LOGOUT</button>
+  <p id="authMessage" class="small"></p>
+ </div>
+
+ <div class="panel" id="adminPanel" style="display:none">
+  <h2>⚡ STORM ADMIN PANEL</h2>
+  <p class="tag">ADMIN ACCESS GRANTED</p>
+  <p class="small">Only accounts in the Supabase admins table can use these controls.</p>
+  <button id="refreshPlayersButton">REFRESH PLAYER LIST</button>
+  <div id="adminPlayers"></div>
+
+  <h3>BAN PLAYER</h3>
+  <input id="banUserId" placeholder="PLAYER UUID">
+  <input id="banReason" placeholder="BAN REASON" maxlength="300">
+  <input id="banHours" type="number" min="1" max="8760" placeholder="HOURS (EMPTY = PERMANENT)">
+  <button id="banPlayerButton">BAN PLAYER</button>
+
+  <h3>UNBAN PLAYER</h3>
+  <input id="unbanUserId" placeholder="PLAYER UUID">
+  <button id="unbanPlayerButton">UNBAN PLAYER</button>
+  <p id="adminMessage" class="small"></p>
+ </div>
 
  <div class="panel">
   <h2>YOUR LOADOUT</h2>
@@ -223,6 +261,357 @@ input,select{padding:10px;border-radius:6px;border:0;margin:7px;width:90%;max-wi
 
 <script type="module">
 import * as THREE from 'three';
+import {createClient} from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm';
+
+// =====================================
+// SUPABASE CONFIGURATION
+// =====================================
+const SUPABASE_URL='https://fgdrrlspmkixrkcnafio.supabase.co';
+const SUPABASE_KEY='sb_publishable_VKyG3FE6fFuPJRVX-U0h0A_VAzcPI_F';
+const sb=createClient(SUPABASE_URL,SUPABASE_KEY);
+
+let currentUser=null;
+let isAdmin=false;
+let activeBan=null;
+let authReady=false;
+
+const $=id=>document.getElementById(id);
+
+function authMessage(message){
+ $('authMessage').textContent=message;
+}
+
+function adminMessage(message){
+ $('adminMessage').textContent=message;
+}
+
+// =====================================
+// ACCOUNT AND ADMIN SYSTEM
+// =====================================
+async function savePlayerProfile(user){
+ if(!user)return;
+
+ const username=
+  user.user_metadata?.username||
+  user.email?.split('@')[0]||
+  'Player';
+
+ const {error}=await sb.from('profiles').upsert({
+  id:user.id,
+  username:username
+ },{onConflict:'id'});
+
+ if(error)console.error('Profile save:',error);
+}
+
+async function checkAdmin(user){
+ if(!user)return false;
+
+ const {data,error}=await sb
+  .from('admins')
+  .select('user_id')
+  .eq('user_id',user.id)
+  .maybeSingle();
+
+ if(error){
+  console.error('Admin check:',error);
+  return false;
+ }
+
+ return !!data;
+}
+
+async function checkPlayerBan(){
+ activeBan=null;
+
+ const {data,error}=await sb.rpc('check_my_ban');
+
+ if(error){
+  console.error('Ban check:',error);
+  return {error:true};
+ }
+
+ if(Array.isArray(data)&&data.length>0){
+  activeBan=data[0];
+ }
+
+ return {error:false,banned:!!activeBan};
+}
+
+async function updateAccountUI(){
+ if(!currentUser){
+  $('accountStatus').textContent='Not logged in';
+  $('adminPanel').style.display='none';
+  isAdmin=false;
+  return;
+ }
+
+ $('accountStatus').textContent='Logged in: '+currentUser.email;
+
+ isAdmin=await checkAdmin(currentUser);
+ $('adminPanel').style.display=isAdmin?'block':'none';
+
+ if(isAdmin)await loadAdminPlayers();
+}
+
+async function registerAccount(){
+ const username=$('authUsername').value.trim();
+ const email=$('authEmail').value.trim();
+ const password=$('authPassword').value;
+
+ if(!username||!email||!password){
+  authMessage('Fill in username, email and password.');
+  return;
+ }
+
+ if(username.length<3||username.length>24){
+  authMessage('Username must be 3 to 24 characters.');
+  return;
+ }
+
+ if(password.length<8){
+  authMessage('Password must be at least 8 characters.');
+  return;
+ }
+
+ const {data,error}=await sb.auth.signUp({
+  email,
+  password,
+  options:{data:{username}}
+ });
+
+ if(error){
+  authMessage(error.message);
+  return;
+ }
+
+ if(data.session&&data.user){
+  currentUser=data.user;
+  await savePlayerProfile(currentUser);
+  await updateAccountUI();
+  authMessage('Account created successfully!');
+ }else{
+  authMessage('Check your email to confirm your account, then log in.');
+ }
+}
+
+async function loginAccount(){
+ const email=$('authEmail').value.trim();
+ const password=$('authPassword').value;
+
+ if(!email||!password){
+  authMessage('Enter your email and password.');
+  return;
+ }
+
+ const {data,error}=await sb.auth.signInWithPassword({email,password});
+
+ if(error){
+  authMessage(error.message);
+  return;
+ }
+
+ currentUser=data.user;
+ await savePlayerProfile(currentUser);
+ await updateAccountUI();
+
+ const ban=await checkPlayerBan();
+
+ if(ban.error){
+  authMessage('Could not verify ban status. Please try again.');
+ }else if(ban.banned){
+  authMessage('ACCOUNT BANNED: '+activeBan.reason+
+   (activeBan.banned_until?' · Until '+new Date(activeBan.banned_until).toLocaleString():' · Permanent ban'));
+ }else{
+  authMessage('Welcome back!');
+ }
+}
+
+async function logoutAccount(){
+ const {error}=await sb.auth.signOut();
+
+ if(error){
+  authMessage(error.message);
+  return;
+ }
+
+ currentUser=null;
+ isAdmin=false;
+ activeBan=null;
+ await updateAccountUI();
+ authMessage('Logged out.');
+}
+
+async function loadAdminPlayers(){
+ if(!currentUser||!isAdmin)return;
+
+ const box=$('adminPlayers');
+ box.textContent='Loading players...';
+
+ const {data,error}=await sb
+  .from('profiles')
+  .select('id,username,wins,eliminations')
+  .order('username');
+
+ if(error){
+  box.textContent='Could not load players: '+error.message;
+  return;
+ }
+
+ box.innerHTML='';
+
+ if(!data||data.length===0){
+  box.textContent='No player profiles found yet.';
+  return;
+ }
+
+ data.forEach(p=>{
+  const card=document.createElement('div');
+  card.className='reward adminPlayer';
+
+  const info=document.createElement('div');
+  const name=document.createElement('b');
+  name.textContent=p.username||'Player';
+
+  const uuid=document.createElement('div');
+  uuid.className='small';
+  uuid.textContent='UUID: '+p.id;
+
+  const stats=document.createElement('div');
+  stats.className='small';
+  stats.textContent='Wins: '+Number(p.wins||0)+' · Eliminations: '+Number(p.eliminations||0);
+
+  info.append(name,uuid,stats);
+
+  const select=document.createElement('button');
+  select.textContent='SELECT';
+  select.onclick=()=>{
+   $('banUserId').value=p.id;
+   $('unbanUserId').value=p.id;
+   adminMessage('Selected '+(p.username||'player'));
+  };
+
+  card.append(info,select);
+  box.appendChild(card);
+ });
+}
+
+async function adminBanPlayer(){
+ if(!currentUser||!isAdmin){
+  adminMessage('Admin access required.');
+  return;
+ }
+
+ const userId=$('banUserId').value.trim();
+ const reason=$('banReason').value.trim();
+ const hoursText=$('banHours').value.trim();
+
+ if(!userId||!reason){
+  adminMessage('Enter a player UUID and a reason.');
+  return;
+ }
+
+ if(userId===currentUser.id){
+  adminMessage('You cannot ban your own account.');
+  return;
+ }
+
+ let hours=null;
+
+ if(hoursText!==''){
+  hours=Number(hoursText);
+
+  if(!Number.isInteger(hours)||hours<1||hours>8760){
+   adminMessage('Hours must be between 1 and 8760.');
+   return;
+  }
+ }
+
+ if(!confirm(hours===null?
+  'Permanently ban this player?':
+  'Ban this player for '+hours+' hours?'))return;
+
+ const {error}=await sb.rpc('admin_ban_player',{
+  p_user_id:userId,
+  p_reason:reason,
+  p_hours:hours
+ });
+
+ if(error){
+  adminMessage('Ban failed: '+error.message);
+  return;
+ }
+
+ adminMessage(hours===null?'Player permanently banned.':'Player banned for '+hours+' hours.');
+}
+
+async function adminUnbanPlayer(){
+ if(!currentUser||!isAdmin){
+  adminMessage('Admin access required.');
+  return;
+ }
+
+ const userId=$('unbanUserId').value.trim();
+
+ if(!userId){
+  adminMessage('Enter a player UUID.');
+  return;
+ }
+
+ if(!confirm('Unban this player?'))return;
+
+ const {error}=await sb.rpc('admin_unban_player',{p_user_id:userId});
+
+ if(error){
+  adminMessage('Unban failed: '+error.message);
+  return;
+ }
+
+ adminMessage('Player unbanned successfully.');
+}
+
+async function initializeAuth(){
+ const {data,error}=await sb.auth.getSession();
+
+ if(error){
+  authMessage('Could not check login: '+error.message);
+  authReady=true;
+  return;
+ }
+
+ currentUser=data.session?.user||null;
+
+ if(currentUser)await savePlayerProfile(currentUser);
+
+ await updateAccountUI();
+ authReady=true;
+
+ sb.auth.onAuthStateChange((event,session)=>{
+  currentUser=session?.user||null;
+
+  if(!currentUser){
+   isAdmin=false;
+   activeBan=null;
+   $('adminPanel').style.display='none';
+   $('accountStatus').textContent='Not logged in';
+  }else{
+   $('accountStatus').textContent='Logged in: '+currentUser.email;
+   setTimeout(async()=>{
+    if(currentUser){
+     await savePlayerProfile(currentUser);
+     await updateAccountUI();
+    }
+   },0);
+  }
+ });
+}
+
+$('registerButton').onclick=registerAccount;
+$('loginButton').onclick=loginAccount;
+$('logoutButton').onclick=logoutAccount;
+$('refreshPlayersButton').onclick=loadAdminPlayers;
+$('banPlayerButton').onclick=adminBanPlayer;
+$('unbanPlayerButton').onclick=adminUnbanPlayer;
 
 // =====================================
 // SAVE DATA
@@ -274,37 +663,46 @@ function num(key,def=0){
  const n=Number(localStorage.getItem(key));
  return Number.isFinite(n)?n:def;
 }
+
 function arr(key,def=[]){
  try{
   const a=JSON.parse(localStorage.getItem(key)||'null');
   return Array.isArray(a)?a:def;
  }catch{return def}
 }
-function save(key,value){localStorage.setItem(key,JSON.stringify(value))}
 
-// BigInt: very large crystal amounts remain exact.
+function save(key,value){
+ localStorage.setItem(key,JSON.stringify(value));
+}
+
 function getSC(){
  try{return BigInt(localStorage.getItem(S.sc)||'0')}
  catch{return 0n}
 }
+
 function setSC(n){
  const amount=BigInt(n);
  localStorage.setItem(S.sc,String(amount<0n?0n:amount));
  updateCurrency();
 }
+
 function addSC(n){setSC(getSC()+BigInt(n))}
 function getXP(){return num(S.xp)}
 function setXP(n){localStorage.setItem(S.xp,String(Math.max(0,n)))}
 function getLevel(){return Math.min(MAX_LEVEL,1+Math.floor(getXP()/PASS_XP))}
 function getOwned(){return arr(S.owned,['blue'])}
 function getClaimed(){return arr(S.claimed,[])}
+
 function updateCurrency(){
  const amount=getSC().toString();
- document.getElementById('lobbySC').textContent=amount;
- document.getElementById('shopSC').textContent=amount;
+ $('lobbySC').textContent=amount;
+ $('shopSC').textContent=amount;
 }
+
 function escapeHTML(s){
- return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+ return String(s).replace(/[&<>"']/g,c=>({
+  '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
+ }[c]));
 }
 
 // =====================================
@@ -322,25 +720,24 @@ const REDEEM_CODES={
 
 function showRedeem(){
  panel('redeemPanel');
- document.getElementById('redeemInput').value='';
- document.getElementById('redeemMessage').textContent='';
+ $('redeemInput').value='';
+ $('redeemMessage').textContent='';
 }
 
 function redeemCode(){
- const input=document.getElementById('redeemInput');
- const message=document.getElementById('redeemMessage');
+ const input=$('redeemInput');
+ const message=$('redeemMessage');
  const code=input.value.trim().toUpperCase();
 
- if(!code){
-  message.textContent='ENTER A CODE FIRST!';
-  return;
- }
+ if(!code){message.textContent='ENTER A CODE FIRST!';return}
 
  const used=arr('stormUsedRedeemCodes',[]);
+
  if(!REDEEM_CODES[code]){
   message.textContent='INVALID CODE!';
   return;
  }
+
  if(used.includes(code)){
   message.textContent='CODE ALREADY REDEEMED!';
   return;
@@ -349,11 +746,11 @@ function redeemCode(){
  addSC(BigInt(REDEEM_CODES[code].crystals));
  used.push(code);
  save('stormUsedRedeemCodes',used);
-
  message.textContent='✓ '+REDEEM_CODES[code].message;
  updateCurrency();
  refreshShop();
 }
+
 window.showRedeem=showRedeem;
 window.redeemCode=redeemCode;
 
@@ -381,26 +778,29 @@ function passRewards(){
    }
   }
  }
+
  save(S.claimed,claimed);
 }
 
 function refreshPass(){
  passRewards();
+
  const level=getLevel();
  const xp=getXP();
 
- document.getElementById('passXP').textContent=xp;
- document.getElementById('passLevel').textContent=level;
- document.getElementById('passProgress').style.width=
+ $('passXP').textContent=xp;
+ $('passLevel').textContent=level;
+ $('passProgress').style.width=
   (level>=10?100:(xp%PASS_XP)/PASS_XP*100)+'%';
 
  const premium=localStorage.getItem(S.premium)==='true';
 
- document.getElementById('premiumStatus').innerHTML=premium?
+ $('premiumStatus').innerHTML=premium?
   '<p style="color:#d6a5ff"><b>STORM PASS + OWNED · SEASON 1</b></p>':
   '<p class="small">FREE PASS is always available. STORM PASS + costs 1,500 SC.</p>';
 
  let html='';
+
  for(let i=1;i<=10;i++){
   const unlocked=level>=i;
   const free=i<=6;
@@ -412,13 +812,15 @@ function refreshPass(){
    <b>${unlocked?'UNLOCKED':'LOCKED'}</b>
   </div>`;
  }
- document.getElementById('passRewards').innerHTML=html;
+
+ $('passRewards').innerHTML=html;
  updateCurrency();
 }
 
 function buyLevel(){
  if(getLevel()>=MAX_LEVEL){alert('MAX LEVEL REACHED!');return}
  if(getSC()<100n){alert('Not enough Storm Crystals!');return}
+
  setSC(getSC()-100n);
  setXP(getXP()+PASS_XP);
  refreshPass();
@@ -430,13 +832,14 @@ function buyPremium(){
   alert('You already own STORM PASS + for Season 1!');
   return;
  }
+
  if(getSC()<1500n){alert('You need 1,500 Storm Crystals!');return}
  if(!confirm('Buy STORM PASS + for 1,500 Storm Crystals?'))return;
 
  setSC(getSC()-1500n);
  localStorage.setItem(S.premium,'true');
  refreshPass();
- alert('STORM PASS + unlocked! Your premium rewards are saved.');
+ alert('STORM PASS + unlocked!');
 }
 
 function addXP(n){setXP(getXP()+n);refreshPass()}
@@ -445,6 +848,7 @@ function addXP(n){setXP(getXP()+n);refreshPass()}
 // QUESTS
 // =====================================
 function dayKey(){return new Date().toISOString().slice(0,10)}
+
 function weekKey(){
  const d=new Date();
  const first=new Date(d.getFullYear(),0,1);
@@ -473,6 +877,7 @@ function updateQuestProgress(type,amount=1){
   w[1]+=amount;
   localStorage.setItem(S.elims,String(num(S.elims)+amount));
  }
+
  if(type==='chest')localStorage.setItem(S.chests,String(num(S.chests)+amount));
  if(type==='match')localStorage.setItem(S.matches,String(num(S.matches)+amount));
 
@@ -517,17 +922,14 @@ function questRow(title,progress,target,xp,sc=0){
 function refreshQuests(){
  const {d,w}=questData();
 
- document.getElementById('dailyQuests').innerHTML=
-  questRow('Get 3 eliminations',d[1],3,150);
-
- document.getElementById('weeklyQuests').innerHTML=
-  questRow('Get 10 eliminations',w[1],10,500);
+ $('dailyQuests').innerHTML=questRow('Get 3 eliminations',d[1],3,150);
+ $('weeklyQuests').innerHTML=questRow('Get 10 eliminations',w[1],10,500);
 
  const elims=num(S.elims);
  const wins=num(S.wins);
  const chests=num(S.chests);
 
- document.getElementById('milestoneQuests').innerHTML=
+ $('milestoneQuests').innerHTML=
   questRow('Eliminations I',elims,25,400,25)+
   questRow('Eliminations II',elims,100,1000,75)+
   questRow('Champion',wins,10,1000,100)+
@@ -538,13 +940,14 @@ function refreshQuests(){
 // SHOP AND LOBBY
 // =====================================
 function refreshSkinSelect(){
- const select=document.getElementById('skinSelect');
+ const select=$('skinSelect');
  const previous=localStorage.getItem(S.skin)||'blue';
 
  select.innerHTML='';
 
  getOwned().forEach(id=>{
   if(!SKINS[id])return;
+
   const o=document.createElement('option');
   o.value=id;
   o.textContent=SKINS[id].name;
@@ -556,7 +959,7 @@ function refreshSkinSelect(){
 
 function refreshShop(){
  updateCurrency();
- const box=document.getElementById('shopItems');
+ const box=$('shopItems');
  box.innerHTML='';
 
  Object.entries(SKINS).forEach(([id,s])=>{
@@ -585,12 +988,12 @@ function refreshShop(){
 
 function hidePanels(){
  ['shop','stormPass','quests','settings','leaderboard','redeemPanel']
- .forEach(id=>document.getElementById(id).style.display='none');
+ .forEach(id=>$(id).style.display='none');
 }
 
 function panel(id){
  hidePanels();
- document.getElementById(id).style.display='block';
+ $(id).style.display='block';
 }
 
 function showShop(){refreshShop();panel('shop')}
@@ -602,7 +1005,7 @@ function showLeaderboard(){
  const wins=num(S.wins);
  const elims=num(S.elims);
 
- document.getElementById('scores').innerHTML=
+ $('scores').innerHTML=
  `<div class="reward">YOUR WINS <b>${wins}</b></div>
  <div class="reward">YOUR ELIMINATIONS <b>${elims}</b></div>
  <div class="reward">MATCHES PLAYED <b>${num(S.matches)}</b></div>`;
@@ -626,7 +1029,7 @@ let lobbyAnimation;
 function initLobby3D(){
  if(lobbyRenderer)return;
 
- const canvas=document.getElementById('lobby3d');
+ const canvas=$('lobby3d');
 
  lobbyScene=new THREE.Scene();
  lobbyScene.background=new THREE.Color(0x172d50);
@@ -722,6 +1125,7 @@ function resizeLobby3D(){
  lobbyCamera.updateProjectionMatrix();
  lobbyRenderer.setSize(innerWidth,innerHeight);
 }
+
 window.addEventListener('resize',resizeLobby3D);
 
 // =====================================
@@ -761,7 +1165,7 @@ const randomName=()=>FIRST[Math.floor(Math.random()*FIRST.length)]+LAST[Math.flo
 const rand=(a,b)=>a+Math.random()*(b-a);
 
 function addFeed(killer,victim,boss=false){
- const feed=document.getElementById('feed');
+ const feed=$('feed');
  const row=document.createElement('div');
  row.className='feedItem';
  row.textContent=(boss?'👑 BOSS ELIMINATED · ':'ELIMINATED · ')+killer+' → '+victim;
@@ -793,11 +1197,11 @@ function makeWeapon(boss=false){
 }
 
 function updateWeaponHUD(){
- document.getElementById('weaponHUD').textContent=weapon?
+ $('weaponHUD').textContent=weapon?
  weapon.rarity.name+' · '+weapon.name+' · '+weapon.ammo+' ENERGY':
  'NO WEAPON · FIND A CHEST';
 
- document.getElementById('weaponHUD').style.border=
+ $('weaponHUD').style.border=
  '2px solid '+(weapon?'#'+weapon.rarity.color.toString(16).padStart(6,'0'):'#777');
 }
 
@@ -1105,6 +1509,7 @@ function discoverIslandCode(){
  for(const item of secretCodeItems){
   if(!item.visible)continue;
   const d=player.position.distanceTo(item.position);
+
   if(d<best){
    best=d;
    nearest=item;
@@ -1120,7 +1525,7 @@ function discoverIslandCode(){
  save('stormFoundIslandCodes',found);
  nearest.visible=false;
 
- const box=document.getElementById('interaction');
+ const box=$('interaction');
  box.textContent='SECRET CODE FOUND: '+code;
  box.style.display='block';
 
@@ -1142,10 +1547,7 @@ function init(){
  renderer.setPixelRatio(Math.min(devicePixelRatio,2));
  renderer.shadowMap.enabled=true;
 
- document.getElementById('game').insertBefore(
-  renderer.domElement,
-  document.getElementById('game').firstChild
- );
+ $('game').insertBefore(renderer.domElement,$('game').firstChild);
 
  addLight();
  createIsland();
@@ -1180,10 +1582,10 @@ function init(){
   bots.push(b);
  }
 
- document.getElementById('botsLeft').textContent='100';
- document.getElementById('killsText').textContent='ELIMS: 0';
- document.getElementById('feed').innerHTML='';
- document.getElementById('phaseText').textContent='ON THE BUS';
+ $('botsLeft').textContent='100';
+ $('killsText').textContent='ELIMS: 0';
+ $('feed').innerHTML='';
+ $('phaseText').textContent='ON THE BUS';
 
  health=100;
  jumped=false;
@@ -1197,8 +1599,8 @@ function init(){
  updateHealth();
  updateWeaponHUD();
 
- document.getElementById('mapPanel').style.display='none';
- document.getElementById('interaction').style.display='none';
+ $('mapPanel').style.display='none';
+ $('interaction').style.display='none';
 
  renderer.domElement.addEventListener('click',canvasClick);
  window.addEventListener('keydown',keyDown);
@@ -1218,6 +1620,7 @@ function keyDown(e){
 
  if(e.code==='Space'){
   e.preventDefault();
+
   if(!jumped)jumpFromBus();
   else if(canJump){
    velocityY=9;
@@ -1236,7 +1639,7 @@ function keyUp(e){keys[e.code]=false}
 
 function mouseMove(e){
  if(document.pointerLockElement===renderer?.domElement){
-  const s=Number(document.getElementById('sensitivity').value)*.00025;
+  const s=Number($('sensitivity').value)*.00025;
   yaw-=e.movementX*s;
   pitch=Math.max(-.75,Math.min(.75,pitch-e.movementY*s));
  }
@@ -1247,20 +1650,22 @@ function canvasClick(){
   renderer.domElement.requestPointerLock();
   return;
  }
+
  if(jumped)shoot();
 }
 
 function jumpFromBus(){
  if(jumped)return;
+
  jumped=true;
  player.position.copy(airship.position);
  velocityY=-3;
- document.getElementById('phaseText').textContent='LANDING';
+ $('phaseText').textContent='LANDING';
 }
 
 function toggleMap(){
  mapOpen=!mapOpen;
- document.getElementById('mapPanel').style.display=mapOpen?'block':'none';
+ $('mapPanel').style.display=mapOpen?'block':'none';
 
  if(mapOpen)document.exitPointerLock();
  else renderer.domElement.requestPointerLock();
@@ -1275,7 +1680,9 @@ function openNearbyChest(){
 
  chests.forEach(c=>{
   if(c.userData.opened)return;
+
   const d=player.position.distanceTo(c.position);
+
   if(d<best){
    best=d;
    nearest=c;
@@ -1283,9 +1690,9 @@ function openNearbyChest(){
  });
 
  if(!nearest){
-  document.getElementById('interaction').textContent='NO CHEST NEARBY';
-  document.getElementById('interaction').style.display='block';
-  setTimeout(()=>document.getElementById('interaction').style.display='none',1000);
+  $('interaction').textContent='NO CHEST NEARBY';
+  $('interaction').style.display='block';
+  setTimeout(()=>$('interaction').style.display='none',1000);
   return;
  }
 
@@ -1301,11 +1708,9 @@ function openNearbyChest(){
  localStorage.setItem(S.chests,String(num(S.chests)+1));
  checkQuests();
 
- document.getElementById('interaction').textContent=
-  'FOUND '+w.rarity.name.toUpperCase()+' · '+w.name;
-
- document.getElementById('interaction').style.display='block';
- setTimeout(()=>document.getElementById('interaction').style.display='none',1800);
+ $('interaction').textContent='FOUND '+w.rarity.name.toUpperCase()+' · '+w.name;
+ $('interaction').style.display='block';
+ setTimeout(()=>$('interaction').style.display='none',1800);
 }
 
 function openBotChest(bot){
@@ -1314,7 +1719,9 @@ function openBotChest(bot){
 
  chests.forEach(c=>{
   if(c.userData.opened)return;
+
   const d=bot.position.distanceTo(c.position);
+
   if(d<best){
    best=d;
    nearest=c;
@@ -1333,7 +1740,7 @@ function openBotChest(bot){
 // ELIMINATIONS
 // =====================================
 function updatePlayersLeft(){
- document.getElementById('botsLeft').textContent=bots.length+(health>0?1:0);
+ $('botsLeft').textContent=bots.length+(health>0?1:0);
 }
 
 function removeBot(bot,killer){
@@ -1348,7 +1755,7 @@ function removeBot(bot,killer){
 
  if(killer==='YOU'){
   kills++;
-  document.getElementById('killsText').textContent='ELIMS: '+kills;
+  $('killsText').textContent='ELIMS: '+kills;
 
   localStorage.setItem(S.elims,String(num(S.elims)+1));
   addXP(boss?250:100);
@@ -1367,7 +1774,9 @@ function removeBot(bot,killer){
 
 function damageBot(bot,amount,killer){
  if(!bots.includes(bot))return;
+
  bot.userData.health-=amount;
+
  if(bot.userData.health<=0)removeBot(bot,killer);
 }
 
@@ -1377,7 +1786,7 @@ function damagePlayer(amount,killer){
  health=Math.max(0,health-amount);
  updateHealth();
 
- const flash=document.getElementById('damageFlash');
+ const flash=$('damageFlash');
  flash.style.opacity='1';
  setTimeout(()=>flash.style.opacity='0',130);
 
@@ -1385,10 +1794,10 @@ function damagePlayer(amount,killer){
 }
 
 function updateHealth(){
- document.getElementById('healthText').textContent='HEALTH: '+health;
- document.getElementById('healthFill').style.width=health+'%';
+ $('healthText').textContent='HEALTH: '+health;
+ $('healthFill').style.width=health+'%';
 
- document.getElementById('healthFill').style.background=
+ $('healthFill').style.background=
   health>60?'#38dc62':health>30?'#ffb52e':'#ff3939';
 }
 
@@ -1397,13 +1806,14 @@ function updateHealth(){
 // =====================================
 function shoot(){
  if(!weapon){
-  document.getElementById('interaction').textContent='FIND A CHEST FIRST!';
-  document.getElementById('interaction').style.display='block';
-  setTimeout(()=>document.getElementById('interaction').style.display='none',1000);
+  $('interaction').textContent='FIND A CHEST FIRST!';
+  $('interaction').style.display='block';
+  setTimeout(()=>$('interaction').style.display='none',1000);
   return;
  }
 
  const now=performance.now();
+
  if(now-lastShot<weapon.rarity.rate*1000||weapon.ammo<=0)return;
 
  lastShot=now;
@@ -1456,7 +1866,9 @@ function updateBots(dt){
 
     chests.forEach(c=>{
      if(c.userData.opened)return;
+
      const d=bot.position.distanceTo(c.position);
+
      if(d<best){
       best=d;
       chest=c;
@@ -1468,10 +1880,12 @@ function updateBots(dt){
 
    if(data.lootTarget&&!data.lootTarget.userData.opened){
     moveBot(bot,data.lootTarget.position,dt);
+
     if(bot.position.distanceTo(data.lootTarget.position)<3)openBotChest(bot);
    }else{
     wanderBot(bot,dt);
    }
+
    continue;
   }
 
@@ -1480,6 +1894,7 @@ function updateBots(dt){
 
   for(const other of bots){
    if(other===bot)continue;
+
    const d=bot.position.distanceTo(other.position);
 
    if(d<closest&&d<85){
@@ -1544,11 +1959,11 @@ function updateMap(){
  const px=Math.max(8,Math.min(92,x));
  const pz=Math.max(8,Math.min(92,z));
 
- document.getElementById('mapDot').style.left=px+'%';
- document.getElementById('mapDot').style.top=pz+'%';
+ $('mapDot').style.left=px+'%';
+ $('mapDot').style.top=pz+'%';
 
- document.getElementById('miniPlayer').style.left=px+'%';
- document.getElementById('miniPlayer').style.top=pz+'%';
+ $('miniPlayer').style.left=px+'%';
+ $('miniPlayer').style.top=pz+'%';
 }
 
 // =====================================
@@ -1560,10 +1975,10 @@ function showEndScreen(won,killer='THE ISLAND'){
  started=false;
  document.exitPointerLock();
 
- const screen=document.getElementById('endScreen');
- const title=document.getElementById('endTitle');
- const rank=document.getElementById('endRank');
- const message=document.getElementById('endMessage');
+ const screen=$('endScreen');
+ const title=$('endTitle');
+ const rank=$('endRank');
+ const message=$('endMessage');
 
  screen.style.display='flex';
 
@@ -1611,7 +2026,7 @@ function animate(){
   player.position.copy(airship.position);
   player.position.y+=2;
 
-  document.getElementById('phaseText').textContent='PRESS SPACE TO JUMP';
+  $('phaseText').textContent='PRESS SPACE TO JUMP';
  }else{
   const forward=new THREE.Vector3(-Math.sin(yaw),0,-Math.cos(yaw));
   const right=new THREE.Vector3(Math.cos(yaw),0,-Math.sin(yaw));
@@ -1645,7 +2060,7 @@ function animate(){
   }
 
   updateBots(dt);
-  document.getElementById('phaseText').textContent='SURVIVE';
+  $('phaseText').textContent='SURVIVE';
  }
 
  const target=new THREE.Vector3(
@@ -1669,12 +2084,41 @@ function animate(){
 // =====================================
 // START / EXIT / RESIZE
 // =====================================
-function startGame(){
+async function startGame(){
  if(started)return;
 
+ if(!authReady){
+  authMessage('Please wait. Checking your account...');
+  return;
+ }
+
+ if(!currentUser){
+  authMessage('You must log in before playing!');
+  $('accountPanel').scrollIntoView({behavior:'smooth',block:'center'});
+  return;
+ }
+
+ const ban=await checkPlayerBan();
+
+ if(ban.error){
+  authMessage('Could not verify your ban status. Please try again.');
+  return;
+ }
+
+ if(ban.banned){
+  authMessage(
+   'YOU ARE BANNED: '+activeBan.reason+
+   (activeBan.banned_until?
+    ' · Until '+new Date(activeBan.banned_until).toLocaleString():
+    ' · Permanent ban')
+  );
+  $('accountPanel').scrollIntoView({behavior:'smooth',block:'center'});
+  return;
+ }
+
  hidePanels();
- document.getElementById('lobby').style.display='none';
- document.getElementById('game').style.display='block';
+ $('lobby').style.display='none';
+ $('game').style.display='block';
 
  try{
   started=true;
@@ -1684,8 +2128,8 @@ function startGame(){
   console.error(e);
   started=false;
   alert('Could not start game. Check the browser console.');
-  document.getElementById('game').style.display='none';
-  document.getElementById('lobby').style.display='block';
+  $('game').style.display='none';
+  $('lobby').style.display='block';
  }
 }
 
@@ -1703,9 +2147,9 @@ function backToLobby(){
  window.removeEventListener('keyup',keyUp);
  document.removeEventListener('mousemove',mouseMove);
 
- document.getElementById('game').style.display='none';
- document.getElementById('endScreen').style.display='none';
- document.getElementById('lobby').style.display='block';
+ $('game').style.display='none';
+ $('endScreen').style.display='none';
+ $('lobby').style.display='block';
 
  refreshSkinSelect();
  updateCurrency();
@@ -1723,9 +2167,9 @@ function resize(){
 
 window.backToLobby=backToLobby;
 
-document.getElementById('enterLobby').onclick=()=>{
- document.getElementById('intro').style.display='none';
- document.getElementById('lobby').style.display='block';
+$('enterLobby').onclick=()=>{
+ $('intro').style.display='none';
+ $('lobby').style.display='block';
 
  initLobby3D();
 
@@ -1736,14 +2180,15 @@ document.getElementById('enterLobby').onclick=()=>{
  refreshQuests();
 };
 
-document.getElementById('playButton').onclick=()=>{
- localStorage.setItem(S.skin,document.getElementById('skinSelect').value);
+$('playButton').onclick=()=>{
+ localStorage.setItem(S.skin,$('skinSelect').value);
  startGame();
 };
 
-document.getElementById('exit').onclick=backToLobby;
+$('exit').onclick=backToLobby;
 
 updateCurrency();
+initializeAuth();
 </script>
 </body>
 </html>
