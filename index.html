@@ -22,6 +22,10 @@ window.supabaseCreateClient=createClient;
 .eventStatus{font-weight:900;letter-spacing:1px;color:#ffe27a}
 .eventAdmin label{display:block;text-align:left;margin-top:10px;color:#c8d8e8;font-size:13px;font-weight:bold}
 #adminTab{background:#9c43d7;color:white}
+#eliminationFeed{position:absolute;left:12px;top:112px;width:min(280px,42vw);display:flex;flex-direction:column;gap:5px;pointer-events:none;text-shadow:0 1px 3px #000;font-size:12px;font-weight:800}
+.feedLine{background:#101827d9;border-left:3px solid #ffca50;padding:7px 9px;border-radius:4px;animation:feedIn .2s ease-out}
+@keyframes feedIn{from{transform:translateX(-12px);opacity:0}to{transform:none;opacity:1}}
+.bossHud{color:#ffd45e!important;border:1px solid #d99b27}
 @keyframes eventPulse{50%{box-shadow:0 0 32px #a66bff99}}
 
 /* Large character showcase */
@@ -67,7 +71,7 @@ window.supabaseCreateClient=createClient;
 </div>
 <div id="game">
  <div id="hud"><span>BOTS: <b id="botsLeft">18</b></span><span>HP: <b id="hp">100</b></span><span>SHIELD: <b id="shield">100</b></span><span>ELIMS: <b id="elims">0</b></span><span>XP: <b id="xp">0</b></span><span id="weaponHud">PICKAXE</span></div>
- <div id="zone"><div id="zoneFill"></div></div><div id="crosshair">+</div><div id="toast"></div>
+ <div id="bossHud" class="bossHud" style="display:none;position:absolute;top:90px;left:50%;transform:translateX(-50%);width:min(360px,75vw);background:#241b13dd;padding:8px 12px;border-radius:8px;text-align:center;font-weight:900">STORM BOSS <div style="height:7px;background:#44372b;border-radius:8px;margin-top:5px;overflow:hidden"><div id="bossHealthFill" style="height:100%;width:100%;background:#f0b83d"></div></div></div><div id="zone"><div id="zoneFill"></div></div><div id="crosshair">+</div><div id="toast"></div><div id="eliminationFeed" aria-live="polite"></div>
  <div id="help">WASD bewegen · Muis kijken · Spatie springen · Linkermuisknop schieten · E kist · ESC muis los · Shield tot 200</div><button id="exit" onclick="backLobby()">EXIT</button>
 </div>
 <div id="end" class="screen hidden"><div class="tag">RANKED ISLAND · SEASON 1</div><h1 class="logo" id="endTitle">RANKED ROYALE!</h1><h2 id="endSubtitle">YOU ARE THE LAST PLAYER</h2><p>ELIMS: <b id="endElims">0</b> · XP: <b id="endXP">0</b></p><button onclick="backLobby()">RETURN TO LOBBY</button></div>
@@ -94,6 +98,8 @@ const WEAPONS=[
  {name:'LEGENDARY BLASTER',damage:50,rate:.34,range:250,rarity:'LEGENDARY'}
 ];
 const DEFAULT_ACCOUNT=()=>({sc:500,xp:0,level:1,passPlus:false,passSeason:1,claimedFree:[],claimedPlus:[],ownedSkins:['classic'],skin:'classic',redeemed:[],wins:0,elims:0,matches:0});
+// Pass+ is deliberately less generous overall; the final tier beats the combined earlier tiers.
+const PASS_PLUS_REWARDS=[50,55,60,65,70,75,80,95,150,900];
 function authMode(mode){authModeNow=mode;$('usernameWrap').classList.toggle('hidden',mode!=='register');$('authSubmit').textContent=mode==='login'?'LOGIN':'CREATE ACCOUNT';$('loginTab').className=mode==='login'?'':'secondary';$('registerTab').className=mode==='register'?'':'secondary';$('password').autocomplete=mode==='login'?'current-password':'new-password';$('authMessage').textContent=mode==='login'?'Log in met je e-mailadres en wachtwoord.':'Kies een gebruikersnaam en maak je account aan.'}
 window.authMode=authMode;
 function message(t){$('authMessage').textContent=t}
@@ -114,15 +120,17 @@ function updateAccountUI(){$('crystals').textContent=account.sc+' SC';$('level')
 async function checkAdmin(){isAdmin=false;try{const {data,error}=await sb.from('admins').select('user_id').eq('user_id',user.id).maybeSingle();if(!error&&data)isAdmin=true}catch{}}
 async function logout(){if(eventRefreshTimer){clearInterval(eventRefreshTimer);eventRefreshTimer=null}await sb.auth.signOut();user=null;profile=null;account={};stopLobby3D();$('lobby').classList.add('hidden');$('auth').classList.remove('hidden');$('password').value='';authMode('login')}
 window.logout=logout;
-function addXP(n){account.xp+=n;while(account.xp>=account.level*500){account.xp-=account.level*500;account.level++;account.sc+=50;notify('LEVEL UP! +50 SC')}saveAccount()}
+function eventActive(type){return currentLiveEvents.some(e=>e.event_type===type)}
+function awardSC(n){account.sc+=Math.round(n*(eventActive('double_crystals')?2:1))}
+function addXP(n){account.xp+=Math.round(n*(eventActive('double_xp')?2:1));while(account.xp>=account.level*500){account.xp-=account.level*500;account.level++;awardSC(50);notify('LEVEL UP! +50 SC')}saveAccount()}
 function notify(t){const el=$('toast');if(el){el.textContent=t;el.style.opacity=1;setTimeout(()=>el.style.opacity=0,1800)}}
 function openPanel(which){
  const c=$('modalContent');$('modalTitle').textContent=which.toUpperCase();$('modal').classList.remove('hidden');
  if(which==='pass'){
-  let rows='';for(let i=1;i<=10;i++){const free=i<=6?i*100:0,plus=i*160;rows+=`<div class="item"><b>LEVEL ${i}</b><p>FREE: ${free?free+' SC':'XP reward'}</p><p>PLUS: ${plus} SC</p><button onclick="claimReward(${i},false)">CLAIM FREE</button><button onclick="claimReward(${i},true)">CLAIM PLUS</button></div>`}
+  let rows='';for(let i=1;i<=10;i++){const free=i<=6?i*100:0,plus=PASS_PLUS_REWARDS[i-1],freeClaimed=account.claimedFree.includes(i),plusClaimed=account.claimedPlus.includes(i);rows+=`<div class="item"><b>LEVEL ${i}${i===10?' · FINAL TIER':''}</b><p>FREE: ${free?free+' SC':'XP reward'}</p><p>PLUS: ${plus} SC</p><button ${freeClaimed?'disabled':''} onclick="claimReward(${i},false)">${freeClaimed?'CLAIMED':'CLAIM FREE'}</button><button ${plusClaimed?'disabled':''} onclick="claimReward(${i},true)">${plusClaimed?'CLAIMED':'CLAIM PLUS'}</button></div>`}
   c.innerHTML=`<p>Level ${account.level} · ${account.xp} / ${account.level*500} XP</p><p>STORM PASS+ costs 1,500 SC each season.</p><button onclick="buyPass()">BUY STORM PASS+ — 1,500 SC</button><div class="grid">${rows}</div>`;
  }else if(which==='shop'){
-  c.innerHTML='<p>Your balance: '+account.sc+' SC</p><div class="grid">'+SKINS.filter(s=>s.id!=='classic').map(s=>`<div class="item"><b>${s.name}</b><p>${s.price} SC</p><button onclick="buySkin('${s.id}')">BUY</button></div>`).join('')+'</div>';
+  c.innerHTML='<p>Your balance: '+account.sc+' SC</p><div class="grid">'+SKINS.filter(s=>s.id!=='classic').map(s=>{const owned=account.ownedSkins.includes(s.id);return `<div class="item"><b>${s.name}</b><p>${owned?'OWNED':s.price+' SC'}</p><button ${owned?'disabled':''} onclick="buySkin('${s.id}')">${owned?'OWNED':'BUY'}</button></div>`}).join('')+'</div>';
  }else if(which==='skins'){
   c.innerHTML='<div class="grid">'+SKINS.map(s=>`<div class="item"><b>${s.name}</b><p>${account.ownedSkins.includes(s.id)?'OWNED':s.price+' SC'}</p><button onclick="equipSkin('${s.id}')">${account.skin===s.id?'EQUIPPED':'EQUIP'}</button></div>`).join('')+'</div>';
  }else if(which==='codes'){
@@ -139,8 +147,8 @@ function openPanel(which){
       <input
         id="renderDistanceSlider"
         type="range"
-        min="180"
-        max="520"
+        min="160"
+        max="420"
         step="20"
         value="${distance}"
         oninput="setRenderDistance(this.value)"
@@ -163,22 +171,22 @@ function adminEventForm(){
   <p class="muted">Maak een event zichtbaar voor iedereen die de game opent. Kies het type en hoelang het actief blijft.</p>
   <label for="eventTitle">EVENT TITLE</label><input id="eventTitle" maxlength="48" placeholder="BIJVOORBEELD: DOUBLE XP WEEKEND">
   <label for="eventDescription">EVENT MESSAGE</label><input id="eventDescription" maxlength="140" placeholder="Iedereen verdient dubbele XP!">
-  <label for="eventSelect">EVENT TYPE</label><select id="eventSelect"><option value="double_xp">DOUBLE XP</option><option value="double_crystals">DOUBLE CRYSTALS</option><option value="super_chests">SUPER CHESTS</option><option value="shield_boost">SHIELD BOOST</option><option value="community_event">COMMUNITY EVENT</option></select>
+  <label for="eventSelect">EVENT TYPE</label><select id="eventSelect"><option value="double_xp">DOUBLE XP</option><option value="double_crystals">DOUBLE CRYSTALS</option><option value="super_chests">SUPER CHESTS</option><option value="shield_boost">SHIELD BOOST</option><option value="community_event">COMMUNITY EVENT</option></select><p class="muted">DOUBLE XP = extra XP · DOUBLE CRYSTALS = extra SC · SUPER CHESTS = betere kisten · SHIELD BOOST = extra bescherming (eventtype wordt als eventmelding getoond).</p>
   <label for="eventMinutes">DURATION (MINUTES)</label><input id="eventMinutes" type="number" min="1" max="1440" value="30">
   <button style="width:100%;font-size:17px" onclick="publishEvent()">🚀 PUBLISH LIVE EVENT</button>
   <p class="muted">Na publiceren verschijnt het event direct in de lobby. Een event verloopt automatisch na de ingestelde tijd.</p>
  </div><div class="eventAdmin"><h3>🛠 ADMIN TOOLS</h3><p class="muted">Gebruik het live eventbeheer hieronder om je actieve events te controleren.</p><button class="secondary" onclick="loadEvents()">REFRESH EVENTS</button></div>`;
 }
 function adminDashboard(){
- return `<div class="eventLiveCard"><div class="eventStatus">● ADMIN ACCESS GRANTED</div><h3>RANKED ISLAND CONTROL ROOM</h3><p>Welkom in het adminpanel. Hier kun je live events hosten en controleren.</p></div>${adminEventForm()}<div id="eventText">Events worden geladen...</div>`;
+ return `<div class="eventLiveCard"><div class="eventStatus">● ADMIN ACCESS GRANTED</div><h3>RANKED ISLAND CONTROL ROOM</h3><p>Beheer live events en controleer wat momenteel op het eiland actief is.</p><div class="grid"><div class="item"><b>ACCOUNT</b><p>${escapeHTML(profile?.username||'ADMIN')}</p></div><div class="item"><b>SEASON</b><p>SEASON 1</p></div><div class="item"><b>EVENT STATUS</b><p>Live database</p></div></div><button class="secondary" onclick="loadEvents()">↻ REFRESH DASHBOARD</button></div>${adminEventForm()}<div class="eventAdmin"><h3>📡 LIVE EVENT MONITOR</h3><p class="muted">Hieronder zie je actieve, geplande en afgelopen events. De lobbybanner wordt automatisch bijgewerkt.</p><div id="eventText">Events worden geladen...</div></div>`;
 }
 function getRenderDistance(){
-  const saved=Number(localStorage.getItem('rankedRenderDistance')||320);
-  return Math.max(180,Math.min(520,Math.round(saved/20)*20));
+  const saved=Number(localStorage.getItem('rankedRenderDistance')||260);
+  return Math.max(160,Math.min(420,Math.round(saved/20)*20));
 }
 
 function setRenderDistance(value){
-  const distance=Math.max(180,Math.min(520,Math.round(Number(value)/20)*20));
+  const distance=Math.max(160,Math.min(420,Math.round(Number(value)/20)*20));
 
   localStorage.setItem('rankedRenderDistance',String(distance));
 
@@ -203,7 +211,7 @@ window.setRenderDistance=setRenderDistance;
  window.openPanel=openPanel;
 function closePanel(){$('modal').classList.add('hidden')}window.closePanel=closePanel;
 function buyPass(){if(account.passPlus){notify('Pass+ is already active this season');return}if(account.sc<1500){notify('Not enough Storm Crystals');return}account.sc-=1500;account.passPlus=true;saveAccount();openPanel('pass')}
-function claimReward(level,plus){if(level>account.level){notify('Reach this level first');return}const list=plus?account.claimedPlus:account.claimedFree;if(plus&&!account.passPlus){notify('You need STORM PASS+');return}if(list.includes(level)){notify('Already claimed');return}list.push(level);if(!plus){if(level<=6)account.sc+=100;else account.sc+=25}else account.sc+=160;saveAccount();openPanel('pass')}
+function claimReward(level,plus){if(level>account.level){notify('Reach this level first');return}const list=plus?account.claimedPlus:account.claimedFree;if(plus&&!account.passPlus){notify('You need STORM PASS+');return}if(list.includes(level)){notify('Already claimed');return}list.push(level);if(!plus){account.sc+=level<=6?100:25}else account.sc+=PASS_PLUS_REWARDS[level-1]||0;saveAccount();openPanel('pass')}
 function buySkin(id){const s=SKINS.find(x=>x.id===id);if(!s||account.ownedSkins.includes(id))return;if(account.sc<s.price){notify('Not enough SC');return}account.sc-=s.price;account.ownedSkins.push(id);saveAccount();openPanel('shop')}
 function equipSkin(id){if(!account.ownedSkins.includes(id)){notify('Skin not owned');return}account.skin=id;saveAccount();openPanel('skins');if(lobbyAvatar)lobbyAvatar.material.color.setHex(SKINS.find(s=>s.id===id).color)}
 function redeemCode(){const code=$('redeemInput').value.trim().toUpperCase();const rewards={'ISLAND2026':250,'RANKEDSTART':150,'STORMSEASON1':300};if(account.redeemed.includes(code)){notify('Code already used');return}if(!rewards[code]){notify('Invalid code');return}account.redeemed.push(code);account.sc+=rewards[code];saveAccount();notify('Code redeemed: +'+rewards[code]+' SC');openPanel('codes')}
@@ -228,7 +236,7 @@ async function loadEvents(){
  try{
   const {data,error}=await sb.from('live_events').select('*').order('created_at',{ascending:false}).limit(20);
   if(error)throw error;
-  const events=data||[];renderLiveBanner(events);
+  const events=data||[];currentLiveEvents=events.filter(eventIsActive);renderLiveBanner(events);
   if(target){
    const active=events.filter(eventIsActive);
    const upcoming=events.filter(e=>e.starts_at&&new Date(e.starts_at).getTime()>Date.now());
@@ -362,6 +370,7 @@ function stopLobby3D(){
 
 /* Solo battle royale */
 const WORLD=650;let scene,camera,renderer,clock,player,bus,bots=[],trees=[],chests=[],buildings=[],keys={},health=100,shield=100,elims=0,matchXP=0,weapon=null,started=false,busPhase=true,vy=0,canJump=true,yaw=0,pitch=0,lastShot=0,zoneRadius=620,zoneClock=0,toastClock=0,gameEventsAttached=false;
+let feedEntries=[],bossAlive=false,currentLiveEvents=[];
 function startGame(){if(!user){alert('Je moet eerst inloggen!');$('auth').classList.remove('hidden');return}closePanel();$('lobby').classList.add('hidden');$('game').style.display='block';$('end').classList.add('hidden');if(!renderer)initGame();resetGame();started=true;clock.start();renderer.domElement.requestPointerLock();animate()}
 function initGame(){
 clock=new THREE.Clock();
@@ -377,11 +386,11 @@ scene.fog=new THREE.Fog(
 );
 
 camera=new THREE.PerspectiveCamera(
-  75,
+  68,
   innerWidth/innerHeight,
   .1,
   renderDistance+40
-);;renderer=new THREE.WebGLRenderer({antialias:true});renderer.setSize(innerWidth,innerHeight);renderer.setPixelRatio(Math.min(devicePixelRatio,2));$('game').insertBefore(renderer.domElement,$('game').firstChild);scene.add(new THREE.HemisphereLight(0xffffff,0x536b3b,2));const sun=new THREE.DirectionalLight(0xffffff,2);sun.position.set(100,150,70);scene.add(sun);const land=new THREE.Mesh(new THREE.CylinderGeometry(WORLD-8,WORLD,10,96),new THREE.MeshStandardMaterial({color:0x4b9b43}));land.position.y=-5;scene.add(land);const grass=new THREE.Mesh(new THREE.CircleGeometry(WORLD-8,96),new THREE.MeshStandardMaterial({color:0x65b94d}));grass.rotation.x=-Math.PI/2;grass.position.y=.1;scene.add(grass);const water=new THREE.Mesh(new THREE.CircleGeometry(1050,96),new THREE.MeshStandardMaterial({color:0x258bc7}));water.rotation.x=-Math.PI/2;water.position.y=-10.2;scene.add(water);for(let i=0;i<900;i++){const a=Math.random()*Math.PI*2,r=22+Math.random()*(WORLD-38),x=Math.cos(a)*r,z=Math.sin(a)*r;
+);;renderer=new THREE.WebGLRenderer({antialias:false,powerPreference:'high-performance'});renderer.setSize(innerWidth,innerHeight);renderer.setPixelRatio(Math.min(devicePixelRatio,1.25));$('game').insertBefore(renderer.domElement,$('game').firstChild);scene.add(new THREE.HemisphereLight(0xffffff,0x536b3b,2));const sun=new THREE.DirectionalLight(0xffffff,2);sun.position.set(100,150,70);scene.add(sun);const land=new THREE.Mesh(new THREE.CylinderGeometry(WORLD-8,WORLD,10,96),new THREE.MeshStandardMaterial({color:0x4b9b43}));land.position.y=-5;scene.add(land);const grass=new THREE.Mesh(new THREE.CircleGeometry(WORLD-8,96),new THREE.MeshStandardMaterial({color:0x65b94d}));grass.rotation.x=-Math.PI/2;grass.position.y=.1;scene.add(grass);const water=new THREE.Mesh(new THREE.CircleGeometry(1050,96),new THREE.MeshStandardMaterial({color:0x258bc7}));water.rotation.x=-Math.PI/2;water.position.y=-10.2;scene.add(water);for(let i=0;i<280;i++){const a=Math.random()*Math.PI*2,r=22+Math.random()*(WORLD-38),x=Math.cos(a)*r,z=Math.sin(a)*r;
 if(isNearSettlement(x,z,58))continue;
 const g=new THREE.Group();const tr=new THREE.Mesh(new THREE.CylinderGeometry(.5,.7,4,7),new THREE.MeshStandardMaterial({color:0x79502c}));tr.position.y=2;const le=new THREE.Mesh(new THREE.ConeGeometry(3,7,8),new THREE.MeshStandardMaterial({color:0x176b35}));le.position.y=7;g.add(tr,le);g.position.set(x,0,z);scene.add(g);trees.push(g)}
 createSettlements();
@@ -464,30 +473,67 @@ function createSettlements(){
 }
 
 function resetGame(){
- bots=[];chests.forEach(c=>{c.userData.open=false;c.visible=true});health=100;shield=100;elims=0;matchXP=0;weapon=null;busPhase=true;vy=0;canJump=true;zoneRadius=620;zoneClock=0;yaw=0;pitch=0;
- player.position.set(0,90,0);bus.position.set(-WORLD*.82,90,WORLD*.55);
- // Indoor and outdoor chests are reset at the start of each match.
+ bots.forEach(b=>scene.remove(b));bots=[];chests.forEach(c=>{c.userData.open=false;c.visible=true});health=100;shield=100;elims=0;matchXP=0;weapon=null;busPhase=true;vy=0;canJump=true;zoneRadius=620;zoneClock=0;yaw=0;pitch=0;feedEntries=[];bossAlive=true;
+ $('eliminationFeed').innerHTML='';$('bossHud').style.display='block';$('bossHealthFill').style.width='100%';player.position.set(0,90,0);bus.position.set(-WORLD*.82,90,WORLD*.55);
  for(let i=0;i<18;i++){
-  const b=new THREE.Group();
-  const body=new THREE.Mesh(new THREE.CapsuleGeometry(.55,1,4,8),new THREE.MeshStandardMaterial({color:[0xe34b42,0x8c48d9,0xe5a52d,0x35a7a0][i%4]}));
-  body.position.y=1;b.add(body);
-  const head=new THREE.Mesh(new THREE.SphereGeometry(.37,12,10),new THREE.MeshStandardMaterial({color:0xffc99b}));head.position.y=2.1;b.add(head);
   const a=Math.random()*Math.PI*2;
-  b.userData={hp:100,delay:1+Math.random()*7,off:new THREE.Vector3(Math.cos(a)*12,0,Math.sin(a)*8),fall:0,dir:Math.random()*6.28,fire:1+Math.random()*2,hasWeapon:false,targetChest:null,gun:null};
-  b.position.copy(bus.position).add(b.userData.off);scene.add(b);bots.push(b);
+  const b=createBot({color:[0xe34b42,0x8c48d9,0xe5a52d,0x35a7a0][i%4],hp:100,delay:1+Math.random()*7,off:new THREE.Vector3(Math.cos(a)*12,0,Math.sin(a)*8)});
+  b.position.copy(bus.position).add(b.userData.off);bots.push(b);
  }
- updateHUD();
+ // One named boss joins each match; it is stronger and visually larger than regular bots.
+ const boss=createBot({color:0xc58a24,hp:520,isBoss:true,delay:0,off:new THREE.Vector3(0,0,0)});
+ boss.scale.setScalar(1.55);boss.position.set(65,0,-55);bots.push(boss);
+ showToast('STORM BOSS HAS ENTERED THE ISLAND!');pushFeed('STORM BOSS','BOSS SPAWNED');updateHUD();
 }
-function updateHUD(){$('botsLeft').textContent=bots.length;$('hp').textContent=Math.max(0,Math.round(health));$('shield').textContent=Math.max(0,Math.round(shield));$('elims').textContent=elims;$('xp').textContent=matchXP;$('weaponHud').textContent=weapon?.name||'PICKAXE'}
+function createBot({color,hp=100,isBoss=false,delay=0,off=new THREE.Vector3()}){
+ const b=new THREE.Group();
+ const bodyMat=new THREE.MeshStandardMaterial({color,roughness:.82});
+ const darkMat=new THREE.MeshStandardMaterial({color:isBoss?0x493319:0x273341,roughness:.8});
+ const skinMat=new THREE.MeshStandardMaterial({color:isBoss?0xd8a45b:0xffc99b});
+ const body=new THREE.Mesh(new THREE.CapsuleGeometry(isBoss?.68:.48,isBoss?1.25:.85,3,6),bodyMat);body.position.y=1.12;b.add(body);
+ const head=new THREE.Mesh(new THREE.SphereGeometry(isBoss?.42:.32,8,7),skinMat);head.position.y=2.15;b.add(head);
+ const limbs=[];
+ for(const side of [-1,1]){
+  const armPivot=new THREE.Group();armPivot.position.set(side*.55,1.75,0);b.add(armPivot);
+  const arm=new THREE.Mesh(new THREE.CapsuleGeometry(.13,.58,3,5),bodyMat);arm.position.y=-.35;armPivot.add(arm);
+  const legPivot=new THREE.Group();legPivot.position.set(side*.24,.68,0);b.add(legPivot);
+  const leg=new THREE.Mesh(new THREE.CapsuleGeometry(.16,.58,3,5),darkMat);leg.position.y=-.34;legPivot.add(leg);
+  limbs.push({arm:armPivot,leg:legPivot,side});
+ }
+ if(isBoss){const crown=new THREE.Mesh(new THREE.ConeGeometry(.42,.55,5),new THREE.MeshStandardMaterial({color:0xffd34e,metalness:.25}));crown.position.y=2.72;b.add(crown)}
+ b.userData={hp,maxHp:hp,isBoss,delay,off,fall:0,dir:Math.random()*6.28,fire:1+Math.random()*1.5,hasWeapon:true,targetChest:null,gun:null,limbs,walk:Math.random()*6.28,target:null};
+ scene.add(b);return b;
+}
+function updateHUD(){$('botsLeft').textContent=bots.length;$('hp').textContent=Math.max(0,Math.round(health));$('shield').textContent=Math.max(0,Math.round(shield));$('elims').textContent=elims;$('xp').textContent=matchXP;$('weaponHud').textContent=weapon?.name||'PICKAXE';}
 function showToast(t){$('toast').textContent=t;$('toast').style.opacity=1;toastClock=2}
-function shoot(){if(!started||busPhase||!weapon){if(!weapon)showToast('Open a chest with E to find a weapon');return}if(performance.now()-lastShot<weapon.rate*1000)return;lastShot=performance.now();const d=new THREE.Vector3();camera.getWorldDirection(d);const ray=new THREE.Raycaster(camera.position.clone(),d,0,weapon.range),botParts=[],treeParts=[];bots.forEach(b=>b.children.forEach(p=>botParts.push(p)));trees.forEach(t=>t.children.forEach(p=>treeParts.push(p)));const hit=ray.intersectObjects([...botParts,...treeParts],false)[0];if(hit){const target=bots.find(b=>b.children.includes(hit.object));if(target){target.userData.hp-=weapon.damage;if(target.userData.hp<=0){scene.remove(target);bots=bots.filter(b=>b!==target);elims++;matchXP+=100;addXP(100);showToast('ELIMINATION +100 XP');updateHUD();if(!bots.length)endGame(true)}}}}
+function pushFeed(name,action){
+ const feed=$('eliminationFeed');if(!feed)return;
+ const line=document.createElement('div');line.className='feedLine';line.textContent=name+'  '+action;feed.prepend(line);
+ while(feed.children.length>5)feed.lastElementChild.remove();
+}
+function eliminateBot(target,byPlayer=false){
+ if(!bots.includes(target))return;
+ const boss=target.userData.isBoss;scene.remove(target);bots=bots.filter(b=>b!==target);
+ if(boss){bossAlive=false;const bh=$('bossHud');if(bh)bh.style.display='none';pushFeed('STORM BOSS','DEFEATED');showToast('STORM BOSS DEFEATED! +300 XP +150 SC');if(byPlayer){matchXP+=300;awardSC(150);addXP(300)}}
+ else if(byPlayer){elims++;matchXP+=100;addXP(100);pushFeed('YOU','ELIMINATED BOT');showToast('ELIMINATION +100 XP')}
+ else pushFeed('BOT','ELIMINATED BOT');
+ updateHUD();if(!bots.length)endGame(true);
+}
+function damageBot(target,damage,byPlayer=false){if(!target||!bots.includes(target))return;target.userData.hp-=damage;if(target.userData.isBoss){const fill=$('bossHealthFill');if(fill)fill.style.width=Math.max(0,target.userData.hp/target.userData.maxHp*100)+'%'}if(target.userData.hp<=0)eliminateBot(target,byPlayer)}
+function shoot(){
+ if(!started||busPhase||!weapon){if(!weapon)showToast('Open a chest with E to find a weapon');return}
+ if(performance.now()-lastShot<weapon.rate*1000)return;lastShot=performance.now();
+ const d=new THREE.Vector3();camera.getWorldDirection(d);const ray=new THREE.Raycaster(camera.position.clone(),d,0,weapon.range),parts=[];
+ bots.forEach(b=>b.traverse(o=>{if(o.isMesh)parts.push(o)}));
+ const hit=ray.intersectObjects(parts,false)[0];if(hit){const target=bots.find(b=>{let found=false;b.traverse(o=>{if(o===hit.object)found=true});return found});if(target)damageBot(target,weapon.damage,true)}
+}
 function openChest(){
  let c=null,d=7;
  for(const x of chests){if(x.userData.open)continue;const n=x.position.distanceTo(player.position);if(n<d){d=n;c=x}}
  if(!c){showToast('No chest nearby');return}
  c.userData.open=true;c.visible=false;
- const rarity=c.userData.rarity,roll=Math.random();
- if(roll<.22){shield=Math.min(200,shield+(rarity==='LEGENDARY'?75:rarity==='EPIC'?55:rarity==='RARE'?40:25));showToast(rarity+' CHEST: SHIELD UP!')}
+ let rarity=c.userData.rarity;if(eventActive('super_chests'))rarity=rarity==='COMMON'?'RARE':rarity==='RARE'?'EPIC':'LEGENDARY';const roll=Math.random();
+ if(roll<.22){shield=Math.min(200,shield+Math.round((rarity==='LEGENDARY'?75:rarity==='EPIC'?55:rarity==='RARE'?40:25)*(eventActive('shield_boost')?1.5:1)));showToast(rarity+' CHEST: SHIELD UP!')}
  else if(roll<.34){health=Math.min(100,health+35);showToast(rarity+' CHEST: HEALTH RESTORED!')}
  else{
   const index=rarity==='LEGENDARY'?3:rarity==='EPIC'?2:rarity==='RARE'?1:0;
@@ -497,39 +543,31 @@ function openChest(){
 }
 function botsUpdate(dt){
  for(const b of [...bots]){
-  if(!bots.includes(b))continue;
-  const u=b.userData;
-  if(u.delay>0){u.delay-=dt;b.position.set(bus.position.x+u.off.x,bus.position.y+u.off.z*0,bus.position.z+u.off.z);continue}
+  if(!bots.includes(b))continue;const u=b.userData;
+  if(u.delay>0){u.delay-=dt;b.position.set(bus.position.x+u.off.x,bus.position.y,bus.position.z+u.off.z);continue}
   if(b.position.y>0){u.fall+=24*dt;b.position.y=Math.max(0,b.position.y-u.fall*dt);continue}
   if(busPhase)continue;
-  // Bots search for and open a nearby unopened chest before they can attack.
-  if(!u.hasWeapon){
-   if(!u.targetChest||u.targetChest.userData.open){
-    u.targetChest=chests.filter(c=>!c.userData.open).sort((a,b2)=>a.position.distanceToSquared(b.position)-b2.position.distanceToSquared(b.position))[0]||null;
-   }
-   if(u.targetChest){
-    const dx=u.targetChest.position.x-b.position.x,dz=u.targetChest.position.z-b.position.z,dist=Math.hypot(dx,dz);
-    if(dist>3.5){b.position.x+=dx/dist*5*dt;b.position.z+=dz/dist*5*dt}
-    else{
-     u.targetChest.userData.open=true;u.targetChest.visible=false;u.hasWeapon=true;
-     const gun=new THREE.Mesh(new THREE.BoxGeometry(.25,.25,1.4),new THREE.MeshStandardMaterial({color:0x252a32,metalness:.6}));
-     gun.position.set(.55,1.35,-.25);b.add(gun);u.gun=gun;
-    }
-   }
-   continue;
+  // Bots select nearby rival bots first, so fights can happen without the player being involved.
+  let rival=null,rivalDist=Infinity;
+  for(const other of bots){if(other===b||other.userData.delay>0)continue;const d=b.position.distanceTo(other.position);if(d<rivalDist&&d<78){rival=other;rivalDist=d}}
+  let target=rival;
+  if(!target){const pd=Math.hypot(player.position.x-b.position.x,player.position.z-b.position.z);if(pd<92)target=player}
+  if(!target){u.dir+=(Math.random()-.5)*dt*.8;b.position.x+=Math.cos(u.dir)*2.8*dt;b.position.z+=Math.sin(u.dir)*2.8*dt}
+  else{
+   const dx=target.position.x-b.position.x,dz=target.position.z-b.position.z,dist=Math.max(.01,Math.hypot(dx,dz));u.dir=Math.atan2(dz,dx);
+   if(dist>(target===player?17:13)){b.position.x+=dx/dist*(u.isBoss?3.2:4.1)*dt;b.position.z+=dz/dist*(u.isBoss?3.2:4.1)*dt}
+   else{u.fire-=dt;if(u.fire<=0){u.fire=u.isBoss?1.05:1.55;if(target===player){const hit=u.isBoss?9:4;if(shield>0)shield=Math.max(0,shield-hit);else health-=hit;updateHUD();if(health<=0)endGame(false)}else damageBot(target,u.isBoss?24:12,false)}}
   }
-  const dx=player.position.x-b.position.x,dz=player.position.z-b.position.z,dist=Math.hypot(dx,dz);
-  if(dist<65){
-   u.dir=Math.atan2(dz,dx);
-   if(dist>15){b.position.x+=Math.cos(u.dir)*4.2*dt;b.position.z+=Math.sin(u.dir)*4.2*dt}
-   else{u.fire-=dt;if(u.fire<=0){if(shield>0)shield=Math.max(0,shield-4);else health-=4;u.fire=1.8;updateHUD();if(health<=0)endGame(false)}}
-  }else{
-   u.dir+=(Math.random()-.5)*dt;b.position.x+=Math.cos(u.dir)*2.4*dt;b.position.z+=Math.sin(u.dir)*2.4*dt;
-  }
+  u.walk+=dt*(target?8:4);for(const limb of u.limbs||[]){limb.leg.rotation.x=Math.sin(u.walk)*.48*limb.side;limb.arm.rotation.x=-Math.sin(u.walk)*.32*limb.side}
+  b.rotation.y=-u.dir+Math.PI/2;
  }
 }
-function endGame(win){if(!started)return;started=false;document.exitPointerLock();account.matches++;account.elims+=elims;if(win){account.wins++;account.sc+=250;matchXP+=500}addXP(matchXP);saveAccount();$('endTitle').textContent=win?'RANKED ROYALE!':'GAME OVER';$('endSubtitle').textContent=win?'YOU ARE THE LAST PLAYER':'BETTER LUCK NEXT TIME';$('endElims').textContent=elims;$('endXP').textContent=matchXP;$('game').style.display='none';$('end').classList.remove('hidden')}
-function animate(){if(!started)return;requestAnimationFrame(animate);const dt=Math.min(clock.getDelta(),.05);if(busPhase){bus.position.x+=dt*19;bus.position.z-=dt*13;player.position.copy(bus.position);player.position.y+=2;if(keys.Space){busPhase=false;showToast('YOU JUMPED!')}if(bus.position.x>WORLD*.85){busPhase=false;showToast('JUMP FROM THE BUS!')}}else{const f=new THREE.Vector3(-Math.sin(yaw),0,-Math.cos(yaw)),r=new THREE.Vector3(Math.cos(yaw),0,-Math.sin(yaw)),m=new THREE.Vector3();if(keys.KeyW)m.add(f);if(keys.KeyS)m.sub(f);if(keys.KeyA)m.sub(r);if(keys.KeyD)m.add(r);if(m.length())player.position.addScaledVector(m.normalize(),12*dt);if(keys.Space&&canJump){vy=9;canJump=false}vy-=23*dt;player.position.y+=vy*dt;if(player.position.y<0){player.position.y=0;vy=0;canJump=true}if(keys.KeyE){openChest();keys.KeyE=false}zoneClock+=dt;if(zoneClock>45&&zoneRadius>65){zoneClock=0;zoneRadius=Math.max(55,zoneRadius-65);showToast('STORM IS SHRINKING!')}if(Math.hypot(player.position.x,player.position.z)>zoneRadius){health-=4*dt;if(health<=0)endGame(false)}$('zoneFill').style.width=(zoneRadius/620*100)+'%'}botsUpdate(dt);const target=new THREE.Vector3(player.position.x+Math.sin(yaw)*10,player.position.y+4-Math.sin(pitch)*3,player.position.z+Math.cos(yaw)*10);camera.position.lerp(target,Math.min(1,dt*7));camera.lookAt(player.position.x,player.position.y+1.3,player.position.z);if(toastClock>0){toastClock-=dt;if(toastClock<=0)$('toast').style.opacity=0}renderer.render(scene,camera)}
+function endGame(win){if(!started)return;started=false;document.exitPointerLock();account.matches++;account.elims+=elims;if(win){account.wins++;awardSC(250);matchXP+=500}addXP(matchXP);saveAccount();$('endTitle').textContent=win?'RANKED ROYALE!':'GAME OVER';$('endSubtitle').textContent=win?'YOU ARE THE LAST PLAYER':'BETTER LUCK NEXT TIME';$('endElims').textContent=elims;$('endXP').textContent=matchXP;$('game').style.display='none';$('end').classList.remove('hidden')}
+function animate(){if(!started)return;requestAnimationFrame(animate);const dt=Math.min(clock.getDelta(),.05);if(busPhase){bus.position.x+=dt*19;bus.position.z-=dt*13;player.position.copy(bus.position);player.position.y+=2;if(keys.Space){busPhase=false;showToast('YOU JUMPED!')}if(bus.position.x>WORLD*.85){busPhase=false;showToast('JUMP FROM THE BUS!')}}else{const f=new THREE.Vector3(-Math.sin(yaw),0,-Math.cos(yaw)),r=new THREE.Vector3(Math.cos(yaw),0,-Math.sin(yaw)),m=new THREE.Vector3();if(keys.KeyW)m.add(f);if(keys.KeyS)m.sub(f);if(keys.KeyA)m.sub(r);if(keys.KeyD)m.add(r);if(m.length())player.position.addScaledVector(m.normalize(),12*dt);if(keys.Space&&canJump){vy=9;canJump=false}vy-=23*dt;player.position.y+=vy*dt;if(player.position.y<0){player.position.y=0;vy=0;canJump=true}if(keys.KeyE){openChest();keys.KeyE=false}zoneClock+=dt;if(zoneClock>45&&zoneRadius>65){zoneClock=0;zoneRadius=Math.max(55,zoneRadius-65);showToast('STORM IS SHRINKING!')}if(Math.hypot(player.position.x,player.position.z)>zoneRadius){health-=4*dt;if(health<=0)endGame(false)}$('zoneFill').style.width=(zoneRadius/620*100)+'%'}botsUpdate(dt);const target=new THREE.Vector3(player.position.x+Math.sin(yaw)*7.2,player.position.y+3.4-Math.sin(pitch)*2.5,player.position.z+Math.cos(yaw)*7.2);camera.position.lerp(target,Math.min(1,dt*9));camera.lookAt(player.position.x,player.position.y+1.55,player.position.z);if(toastClock>0){toastClock-=dt;if(toastClock<=0)$('toast').style.opacity=0}// Distance-based visibility keeps distant scenery out of the renderer.
+ const maxView=getRenderDistance();for(const t of trees)t.visible=t.position.distanceTo(player.position)<maxView;
+ for(const c of chests)c.visible=!c.userData.open&&c.position.distanceTo(player.position)<maxView*.9;
+ for(const h of buildings)h.visible=h.position.distanceTo(player.position)<maxView*1.05;
+ renderer.render(scene,camera)}
 function resizeGame(){if(camera&&renderer){camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight)}if(lobbyRenderer&&lobbyCamera){lobbyCamera.aspect=innerWidth/innerHeight;lobbyCamera.updateProjectionMatrix();lobbyRenderer.setSize(innerWidth,innerHeight)}}
 function backLobby(){started=false;document.exitPointerLock();$('game').style.display='none';$('end').classList.add('hidden');$('lobby').classList.remove('hidden');if(renderer){renderer.dispose();renderer.domElement.remove();renderer=null;scene=null;trees=[];bots=[];chests=[];buildings=[]}startLobby3D()}
 window.addEventListener('DOMContentLoaded',async()=>{try{sb=window.supabaseCreateClient(SUPABASE_URL,SUPABASE_PUBLISHABLE_KEY);const {data}=await sb.auth.getSession();if(data.session?.user)await afterLogin(data.session.user);sb.auth.onAuthStateChange(async(_event,session)=>{if(session?.user&&!user)await afterLogin(session.user)})}catch(e){message('Supabase init error: '+e.message)}});
