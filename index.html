@@ -1,15 +1,12 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>STORM ISLAND - SEASON 1</title>
-
 <script type="importmap">
 {"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js"}}
 </script>
-
 <style>
 *{box-sizing:border-box}
 body{margin:0;background:#101827;color:white;font-family:Arial;overflow:hidden}
@@ -71,6 +68,9 @@ input,select{padding:10px;border-radius:6px;border:0;margin:7px;width:90%;max-wi
 .adminPlayer{display:flex;justify-content:space-between;gap:8px;align-items:center;flex-wrap:wrap}
 .adminPlayer button{font-size:11px}
 #authMessage,#adminMessage{min-height:20px;overflow-wrap:anywhere}
+.liveEventPanel{border:2px solid #ffd34e;background:linear-gradient(135deg,#42216c,#17283c)}
+.liveEventTimer{font-size:30px;color:#ffd34e;font-weight:bold}
+#gameLiveEventBanner{display:none;position:absolute;top:85px;left:50%;transform:translateX(-50%);background:#7b32c9;border:2px solid #ffd34e;padding:10px 16px;border-radius:9px;font-weight:bold;z-index:6;text-align:center;max-width:90%;text-shadow:1px 2px 3px black}
 @media(max-width:600px){
  #miniMap{width:115px;height:115px;top:85px}
  #feed{top:210px;width:190px;font-size:10px}
@@ -79,7 +79,6 @@ input,select{padding:10px;border-radius:6px;border:0;margin:7px;width:90%;max-wi
 }
 </style>
 </head>
-
 <body>
 
 <div id="intro">
@@ -91,12 +90,17 @@ input,select{padding:10px;border-radius:6px;border:0;margin:7px;width:90%;max-wi
 
 <div id="lobby" style="display:none">
  <canvas id="lobby3d"></canvas>
-
  <div class="tag">SEASON 1 · SOLO</div>
  <h1>STORM<br>ISLAND</h1>
  <h3>ONLY THE BEST SURVIVE</h3>
  <p>99 bots. One island. One winner.</p>
  <p class="currency">◆ <span id="lobbySC">0</span> STORM CRYSTALS</p>
+
+ <div id="liveEventBanner" class="panel liveEventPanel" style="display:none">
+  <h2 id="liveEventTitle">⚡ LIVE EVENT</h2>
+  <p id="liveEventDescription"></p>
+  <div id="liveEventTimer" class="liveEventTimer">30:00</div>
+ </div>
 
  <div class="panel" id="accountPanel">
   <h2>STORM ACCOUNT</h2>
@@ -127,6 +131,23 @@ input,select{padding:10px;border-radius:6px;border:0;margin:7px;width:90%;max-wi
   <h3>UNBAN PLAYER</h3>
   <input id="unbanUserId" placeholder="PLAYER UUID">
   <button id="unbanPlayerButton">UNBAN PLAYER</button>
+
+  <hr>
+  <h2>⚡ LIVE EVENT CONTROL CENTER</h2>
+  <h3>CREATE LIVE EVENT</h3>
+  <input id="eventTitle" placeholder="EVENT NAME (e.g. DOUBLE STORM)">
+  <select id="eventType">
+   <option value="double_crystals">2X STORM CRYSTALS</option>
+   <option value="double_xp">2X XP</option>
+   <option value="super_chests">SUPER CHESTS</option>
+   <option value="custom">CUSTOM EVENT</option>
+  </select>
+  <label for="eventDuration">EVENT DURATION (MINUTES)</label><br>
+  <input id="eventDuration" type="number" min="1" max="1440" value="30">
+  <br>
+  <button id="startEventButton">🚀 START LIVE EVENT</button>
+  <button id="stopEventButton">⛔ END LIVE EVENT</button>
+  <div id="adminEventStatus" class="reward">No active event</div>
   <p id="adminMessage" class="small"></p>
  </div>
 
@@ -231,6 +252,7 @@ input,select{padding:10px;border-radius:6px;border:0;margin:7px;width:90%;max-wi
  <div id="damageFlash"></div>
  <div id="interaction"></div>
  <div id="weaponHUD">NO WEAPON</div>
+ <div id="gameLiveEventBanner"></div>
  <div id="mapPanel">
   <h2>STORM ISLAND</h2>
   <div id="mapIsland"></div>
@@ -275,15 +297,218 @@ let isAdmin=false;
 let activeBan=null;
 let authReady=false;
 
+let liveEvent=null;
+let eventPollTimer=null;
+let eventClockTimer=null;
+
 const $=id=>document.getElementById(id);
 
-function authMessage(message){
- $('authMessage').textContent=message;
+function authMessage(message){$('authMessage').textContent=message}
+function adminMessage(message){$('adminMessage').textContent=message}
+
+// =====================================
+// LIVE EVENT SYSTEM
+// =====================================
+function eventMultiplier(type){
+ if(!liveEvent)return 1;
+ if(type==='double_crystals'&&liveEvent.event_type==='double_crystals')
+  return Number(liveEvent.multiplier)||2;
+ if(type==='double_xp'&&liveEvent.event_type==='double_xp')
+  return Number(liveEvent.multiplier)||2;
+ return 1;
 }
 
-function adminMessage(message){
- $('adminMessage').textContent=message;
+function addEarnedSC(amount){
+ const multiplier=eventMultiplier('double_crystals');
+ addSC(BigInt(Math.floor(Number(amount)*multiplier)));
 }
+
+function eventDescription(event){
+ if(!event)return '';
+ if(event.event_type==='double_crystals')
+  return 'Earn '+event.multiplier+'X STORM CRYSTALS!';
+ if(event.event_type==='double_xp')
+  return 'Earn '+event.multiplier+'X XP!';
+ if(event.event_type==='super_chests')
+  return 'SUPER CHESTS ARE ACTIVE! Find better loot!';
+ return 'A special STORM ISLAND event is active!';
+}
+
+function updateEventUI(){
+ const banner=$('liveEventBanner');
+ const gameBanner=$('gameLiveEventBanner');
+ const status=$('adminEventStatus');
+
+ if(!liveEvent){
+  if(banner)banner.style.display='none';
+  if(gameBanner)gameBanner.style.display='none';
+  if(status)status.textContent='No active event';
+  return;
+ }
+
+ const remaining=Math.max(0,Math.floor(
+  (new Date(liveEvent.ends_at).getTime()-Date.now())/1000
+ ));
+
+ if(remaining<=0){
+  liveEvent=null;
+  if(banner)banner.style.display='none';
+  if(gameBanner)gameBanner.style.display='none';
+  if(status)status.textContent='Event ended';
+  return;
+ }
+
+ const minutes=Math.floor(remaining/60);
+ const seconds=remaining%60;
+ const timer=String(minutes).padStart(2,'0')+':'+String(seconds).padStart(2,'0');
+
+ if(banner){
+  banner.style.display='block';
+  $('liveEventTitle').textContent='⚡ '+liveEvent.title;
+  $('liveEventDescription').textContent=eventDescription(liveEvent);
+  $('liveEventTimer').textContent=timer;
+ }
+
+ if(gameBanner){
+  gameBanner.style.display='block';
+  gameBanner.textContent='⚡ '+liveEvent.title+' · '+timer;
+ }
+
+ if(status){
+  status.textContent=liveEvent.title+' · '+eventDescription(liveEvent)+' · '+timer+' remaining';
+ }
+}
+
+async function refreshLiveEvent(){
+ if(!currentUser)return;
+
+ const userId=currentUser.id;
+ const now=new Date().toISOString();
+
+ const {data,error}=await sb
+  .from('live_events')
+  .select('*')
+  .lte('starts_at',now)
+  .gt('ends_at',now)
+  .order('created_at',{ascending:false})
+  .limit(1)
+  .maybeSingle();
+
+ if(!currentUser||currentUser.id!==userId)return;
+
+ if(error){
+  console.error('Live event error:',error);
+  return;
+ }
+
+ liveEvent=data||null;
+ updateEventUI();
+}
+
+async function startLiveEvent(){
+ if(!currentUser||!isAdmin){
+  adminMessage('Admin access required.');
+  return;
+ }
+
+ const title=$('eventTitle').value.trim();
+ const type=$('eventType').value;
+ const duration=Number($('eventDuration').value);
+
+ if(!title){
+  adminMessage('Enter an event name.');
+  return;
+ }
+
+ if(!Number.isInteger(duration)||duration<1||duration>1440){
+  adminMessage('Duration must be between 1 and 1440 minutes.');
+  return;
+ }
+
+ const now=new Date();
+ const nowISO=now.toISOString();
+ const endsAt=new Date(now.getTime()+duration*60000);
+
+ // End currently active events, but do not alter future scheduled events.
+ const {error:stopError}=await sb
+  .from('live_events')
+  .update({ends_at:nowISO})
+  .lte('starts_at',nowISO)
+  .gt('ends_at',nowISO);
+
+ if(stopError){
+  adminMessage('Could not replace current event: '+stopError.message);
+  return;
+ }
+
+ const {data,error}=await sb
+  .from('live_events')
+  .insert({
+   title,
+   event_type:type,
+   multiplier:type==='custom'?1:2,
+   starts_at:nowISO,
+   ends_at:endsAt.toISOString(),
+   created_by:currentUser.id
+  })
+  .select()
+  .single();
+
+ if(error){
+  adminMessage('Could not start event: '+error.message);
+  return;
+ }
+
+ liveEvent=data;
+ updateEventUI();
+ adminMessage('LIVE EVENT STARTED!');
+}
+
+async function stopLiveEvent(){
+ if(!currentUser||!isAdmin){
+  adminMessage('Admin access required.');
+  return;
+ }
+
+ const now=new Date().toISOString();
+
+ const {error}=await sb
+  .from('live_events')
+  .update({ends_at:now})
+  .lte('starts_at',now)
+  .gt('ends_at',now);
+
+ if(error){
+  adminMessage('Could not stop event: '+error.message);
+  return;
+ }
+
+ liveEvent=null;
+ updateEventUI();
+ adminMessage('LIVE EVENT ENDED.');
+}
+
+function startEventMonitoring(){
+ if(eventPollTimer)clearInterval(eventPollTimer);
+ if(eventClockTimer)clearInterval(eventClockTimer);
+
+ refreshLiveEvent();
+ eventPollTimer=setInterval(refreshLiveEvent,15000);
+ eventClockTimer=setInterval(updateEventUI,1000);
+}
+
+function stopEventMonitoring(){
+ if(eventPollTimer)clearInterval(eventPollTimer);
+ if(eventClockTimer)clearInterval(eventClockTimer);
+
+ eventPollTimer=null;
+ eventClockTimer=null;
+ liveEvent=null;
+ updateEventUI();
+}
+
+$('startEventButton').onclick=startLiveEvent;
+$('stopEventButton').onclick=stopLiveEvent;
 
 // =====================================
 // ACCOUNT AND ADMIN SYSTEM
@@ -291,14 +516,11 @@ function adminMessage(message){
 async function savePlayerProfile(user){
  if(!user)return;
 
- const username=
-  user.user_metadata?.username||
-  user.email?.split('@')[0]||
-  'Player';
+ const username=user.user_metadata?.username||user.email?.split('@')[0]||'Player';
 
  const {error}=await sb.from('profiles').upsert({
   id:user.id,
-  username:username
+  username
  },{onConflict:'id'});
 
  if(error)console.error('Profile save:',error);
@@ -307,23 +529,18 @@ async function savePlayerProfile(user){
 async function checkAdmin(user){
  if(!user)return false;
 
- const {data,error}=await sb
-  .from('admins')
-  .select('user_id')
-  .eq('user_id',user.id)
-  .maybeSingle();
+ const {data,error}=await sb.from('admins')
+  .select('user_id').eq('user_id',user.id).maybeSingle();
 
  if(error){
   console.error('Admin check:',error);
   return false;
  }
-
  return !!data;
 }
 
 async function checkPlayerBan(){
  activeBan=null;
-
  const {data,error}=await sb.rpc('check_my_ban');
 
  if(error){
@@ -331,10 +548,7 @@ async function checkPlayerBan(){
   return {error:true};
  }
 
- if(Array.isArray(data)&&data.length>0){
-  activeBan=data[0];
- }
-
+ if(Array.isArray(data)&&data.length>0)activeBan=data[0];
  return {error:false,banned:!!activeBan};
 }
 
@@ -347,7 +561,6 @@ async function updateAccountUI(){
  }
 
  $('accountStatus').textContent='Logged in: '+currentUser.email;
-
  isAdmin=await checkAdmin(currentUser);
  $('adminPanel').style.display=isAdmin?'block':'none';
 
@@ -363,21 +576,17 @@ async function registerAccount(){
   authMessage('Fill in username, email and password.');
   return;
  }
-
  if(username.length<3||username.length>24){
   authMessage('Username must be 3 to 24 characters.');
   return;
  }
-
  if(password.length<8){
   authMessage('Password must be at least 8 characters.');
   return;
  }
 
  const {data,error}=await sb.auth.signUp({
-  email,
-  password,
-  options:{data:{username}}
+  email,password,options:{data:{username}}
  });
 
  if(error){
@@ -389,6 +598,7 @@ async function registerAccount(){
   currentUser=data.user;
   await savePlayerProfile(currentUser);
   await updateAccountUI();
+  startEventMonitoring();
   authMessage('Account created successfully!');
  }else{
   authMessage('Check your email to confirm your account, then log in.');
@@ -405,7 +615,6 @@ async function loginAccount(){
  }
 
  const {data,error}=await sb.auth.signInWithPassword({email,password});
-
  if(error){
   authMessage(error.message);
   return;
@@ -425,11 +634,12 @@ async function loginAccount(){
  }else{
   authMessage('Welcome back!');
  }
+
+ startEventMonitoring();
 }
 
 async function logoutAccount(){
  const {error}=await sb.auth.signOut();
-
  if(error){
   authMessage(error.message);
   return;
@@ -438,6 +648,7 @@ async function logoutAccount(){
  currentUser=null;
  isAdmin=false;
  activeBan=null;
+ stopEventMonitoring();
  await updateAccountUI();
  authMessage('Logged out.');
 }
@@ -448,10 +659,8 @@ async function loadAdminPlayers(){
  const box=$('adminPlayers');
  box.textContent='Loading players...';
 
- const {data,error}=await sb
-  .from('profiles')
-  .select('id,username,wins,eliminations')
-  .order('username');
+ const {data,error}=await sb.from('profiles')
+  .select('id,username,wins,eliminations').order('username');
 
  if(error){
   box.textContent='Could not load players: '+error.message;
@@ -459,7 +668,6 @@ async function loadAdminPlayers(){
  }
 
  box.innerHTML='';
-
  if(!data||data.length===0){
   box.textContent='No player profiles found yet.';
   return;
@@ -510,38 +718,30 @@ async function adminBanPlayer(){
   adminMessage('Enter a player UUID and a reason.');
   return;
  }
-
  if(userId===currentUser.id){
   adminMessage('You cannot ban your own account.');
   return;
  }
 
  let hours=null;
-
  if(hoursText!==''){
   hours=Number(hoursText);
-
   if(!Number.isInteger(hours)||hours<1||hours>8760){
    adminMessage('Hours must be between 1 and 8760.');
    return;
   }
  }
 
- if(!confirm(hours===null?
-  'Permanently ban this player?':
-  'Ban this player for '+hours+' hours?'))return;
+ if(!confirm(hours===null?'Permanently ban this player?':'Ban this player for '+hours+' hours?'))return;
 
  const {error}=await sb.rpc('admin_ban_player',{
-  p_user_id:userId,
-  p_reason:reason,
-  p_hours:hours
+  p_user_id:userId,p_reason:reason,p_hours:hours
  });
 
  if(error){
   adminMessage('Ban failed: '+error.message);
   return;
  }
-
  adminMessage(hours===null?'Player permanently banned.':'Player banned for '+hours+' hours.');
 }
 
@@ -552,21 +752,17 @@ async function adminUnbanPlayer(){
  }
 
  const userId=$('unbanUserId').value.trim();
-
  if(!userId){
   adminMessage('Enter a player UUID.');
   return;
  }
-
  if(!confirm('Unban this player?'))return;
 
  const {error}=await sb.rpc('admin_unban_player',{p_user_id:userId});
-
  if(error){
   adminMessage('Unban failed: '+error.message);
   return;
  }
-
  adminMessage('Player unbanned successfully.');
 }
 
@@ -580,11 +776,11 @@ async function initializeAuth(){
  }
 
  currentUser=data.session?.user||null;
-
  if(currentUser)await savePlayerProfile(currentUser);
-
  await updateAccountUI();
  authReady=true;
+
+ if(currentUser)startEventMonitoring();
 
  sb.auth.onAuthStateChange((event,session)=>{
   currentUser=session?.user||null;
@@ -592,14 +788,18 @@ async function initializeAuth(){
   if(!currentUser){
    isAdmin=false;
    activeBan=null;
+   stopEventMonitoring();
    $('adminPanel').style.display='none';
    $('accountStatus').textContent='Not logged in';
   }else{
+   const userId=currentUser.id;
    $('accountStatus').textContent='Logged in: '+currentUser.email;
+
    setTimeout(async()=>{
-    if(currentUser){
+    if(currentUser&&currentUser.id===userId){
      await savePlayerProfile(currentUser);
      await updateAccountUI();
+     startEventMonitoring();
     }
    },0);
   }
@@ -617,19 +817,11 @@ $('unbanPlayerButton').onclick=adminUnbanPlayer;
 // SAVE DATA
 // =====================================
 const S={
- sc:'stormSC_S1',
- xp:'stormXP_S1',
- owned:'stormOwned_S1',
- skin:'stormSkin_S1',
- premium:'stormPremium_S1',
- claimed:'stormClaimed_S1',
- wins:'stormWins_S1',
- elims:'stormElims_S1',
- matches:'stormMatches_S1',
- daily:'stormDaily_S1',
- weekly:'stormWeekly_S1',
- milestones:'stormMilestones_S1',
- chests:'stormChests_S1'
+ sc:'stormSC_S1',xp:'stormXP_S1',owned:'stormOwned_S1',
+ skin:'stormSkin_S1',premium:'stormPremium_S1',claimed:'stormClaimed_S1',
+ wins:'stormWins_S1',elims:'stormElims_S1',matches:'stormMatches_S1',
+ daily:'stormDaily_S1',weekly:'stormWeekly_S1',
+ milestones:'stormMilestones_S1',chests:'stormChests_S1'
 };
 
 const RARITIES=[
@@ -641,10 +833,7 @@ const RARITIES=[
  {name:'Mythic',color:0xffffff,chance:0,damage:45,rate:.30}
 ];
 
-const WEAPONS=[
- 'Nova Blaster','Pulse Caster','Storm Repeater','Arc Projector',
- 'Nebula Launcher','Prism Blaster'
-];
+const WEAPONS=['Nova Blaster','Pulse Caster','Storm Repeater','Arc Projector','Nebula Launcher','Prism Blaster'];
 
 const SKINS={
  blue:{name:'Classic Blue',color:0x267bff,price:0},
@@ -671,9 +860,7 @@ function arr(key,def=[]){
  }catch{return def}
 }
 
-function save(key,value){
- localStorage.setItem(key,JSON.stringify(value));
-}
+function save(key,value){localStorage.setItem(key,JSON.stringify(value))}
 
 function getSC(){
  try{return BigInt(localStorage.getItem(S.sc)||'0')}
@@ -730,14 +917,12 @@ function redeemCode(){
  const code=input.value.trim().toUpperCase();
 
  if(!code){message.textContent='ENTER A CODE FIRST!';return}
-
  const used=arr('stormUsedRedeemCodes',[]);
 
  if(!REDEEM_CODES[code]){
   message.textContent='INVALID CODE!';
   return;
  }
-
  if(used.includes(code)){
   message.textContent='CODE ALREADY REDEEMED!';
   return;
@@ -790,8 +975,7 @@ function refreshPass(){
 
  $('passXP').textContent=xp;
  $('passLevel').textContent=level;
- $('passProgress').style.width=
-  (level>=10?100:(xp%PASS_XP)/PASS_XP*100)+'%';
+ $('passProgress').style.width=(level>=10?100:(xp%PASS_XP)/PASS_XP*100)+'%';
 
  const premium=localStorage.getItem(S.premium)==='true';
 
@@ -800,7 +984,6 @@ function refreshPass(){
   '<p class="small">FREE PASS is always available. STORM PASS + costs 1,500 SC.</p>';
 
  let html='';
-
  for(let i=1;i<=10;i++){
   const unlocked=level>=i;
   const free=i<=6;
@@ -832,7 +1015,6 @@ function buyPremium(){
   alert('You already own STORM PASS + for Season 1!');
   return;
  }
-
  if(getSC()<1500n){alert('You need 1,500 Storm Crystals!');return}
  if(!confirm('Buy STORM PASS + for 1,500 Storm Crystals?'))return;
 
@@ -842,7 +1024,11 @@ function buyPremium(){
  alert('STORM PASS + unlocked!');
 }
 
-function addXP(n){setXP(getXP()+n);refreshPass()}
+function addXP(n){
+ const multiplier=eventMultiplier('double_xp');
+ setXP(getXP()+Math.floor(n*multiplier));
+ refreshPass();
+}
 
 // =====================================
 // QUESTS
@@ -877,7 +1063,6 @@ function updateQuestProgress(type,amount=1){
   w[1]+=amount;
   localStorage.setItem(S.elims,String(num(S.elims)+amount));
  }
-
  if(type==='chest')localStorage.setItem(S.chests,String(num(S.chests)+amount));
  if(type==='match')localStorage.setItem(S.matches,String(num(S.matches)+amount));
 
@@ -893,7 +1078,7 @@ function completeQuest(key,rewardXP,rewardSC=0){
  done.push(key);
  save('stormCompletedQuests',done);
  addXP(rewardXP);
- if(rewardSC)addSC(rewardSC);
+ if(rewardSC)addEarnedSC(rewardSC);
 }
 
 function checkQuests(){
@@ -921,7 +1106,6 @@ function questRow(title,progress,target,xp,sc=0){
 
 function refreshQuests(){
  const {d,w}=questData();
-
  $('dailyQuests').innerHTML=questRow('Get 3 eliminations',d[1],3,150);
  $('weeklyQuests').innerHTML=questRow('Get 10 eliminations',w[1],10,500);
 
@@ -942,12 +1126,10 @@ function refreshQuests(){
 function refreshSkinSelect(){
  const select=$('skinSelect');
  const previous=localStorage.getItem(S.skin)||'blue';
-
  select.innerHTML='';
 
  getOwned().forEach(id=>{
   if(!SKINS[id])return;
-
   const o=document.createElement('option');
   o.value=id;
   o.textContent=SKINS[id].name;
@@ -966,7 +1148,6 @@ function refreshShop(){
   const owned=getOwned().includes(id);
   const card=document.createElement('div');
   card.className='card';
-
   card.innerHTML=`<div class="preview" style="background:#${s.color.toString(16).padStart(6,'0')}"></div><b>${s.name}</b><p>${s.price===0?'FREE':s.price+' SC'}</p>`;
 
   const b=document.createElement('button');
@@ -1030,19 +1211,13 @@ function initLobby3D(){
  if(lobbyRenderer)return;
 
  const canvas=$('lobby3d');
-
  lobbyScene=new THREE.Scene();
  lobbyScene.background=new THREE.Color(0x172d50);
 
  lobbyCamera=new THREE.PerspectiveCamera(55,innerWidth/innerHeight,.1,1000);
  lobbyCamera.position.set(0,9,22);
 
- lobbyRenderer=new THREE.WebGLRenderer({
-  canvas,
-  antialias:true,
-  alpha:true
- });
-
+ lobbyRenderer=new THREE.WebGLRenderer({canvas,antialias:true,alpha:true});
  lobbyRenderer.setPixelRatio(Math.min(devicePixelRatio,2));
  lobbyRenderer.setSize(innerWidth,innerHeight);
 
@@ -1070,12 +1245,10 @@ function initLobby3D(){
  for(let i=0;i<9;i++){
   const a=i*Math.PI*2/9;
   const h=2+Math.random()*5;
-
   const building=new THREE.Mesh(
    new THREE.BoxGeometry(2.5,h,2.5),
    new THREE.MeshStandardMaterial({color:i%2?0x52677c:0x687d91})
   );
-
   building.position.set(Math.cos(a)*8,h/2-.4,Math.sin(a)*8);
   lobbyScene.add(building);
  }
@@ -1102,20 +1275,15 @@ function initLobby3D(){
 
  function renderLobby(){
   if(!lobbyRenderer)return;
-
   lobbyAnimation=requestAnimationFrame(renderLobby);
-
   const t=performance.now()*.0003;
-
   lobbyCharacter.rotation.y=t*1.5;
   lobbyCamera.position.x=Math.sin(t)*24;
   lobbyCamera.position.z=Math.cos(t)*24;
   lobbyCamera.lookAt(0,2,0);
-
   ring.rotation.z=t;
   lobbyRenderer.render(lobbyScene,lobbyCamera);
  }
-
  renderLobby();
 }
 
@@ -1125,7 +1293,6 @@ function resizeLobby3D(){
  lobbyCamera.updateProjectionMatrix();
  lobbyRenderer.setSize(innerWidth,innerHeight);
 }
-
 window.addEventListener('resize',resizeLobby3D);
 
 // =====================================
@@ -1149,17 +1316,8 @@ const POIS=[
  ['CRYSTAL BAY',175,-20,0x488db5]
 ];
 
-const FIRST=[
- 'Shadow','Storm','Pixel','Night','Frost','Nova','Dark','Golden','Swift','Crystal',
- 'Mystic','Thunder','Silent','Wild','Cyber','Blaze','Echo','Lunar','Solar','Rogue',
- 'Arctic','Rapid','Vortex','Lucky','Phantom','Iron','Neon','Cloud','Silver','Raven'
-];
-
-const LAST=[
- 'Wolf','Ninja','Rider','Hunter','Fox','Knight','Runner','Dragon','Falcon','Legend',
- 'Master','Ghost','Tiger','Hawk','Storm','Blade','Spark','Viper','Ace','King',
- 'Wizard','Scout','Hero','Shadow','Pilot','Bear','Lion','Star','Comet'
-];
+const FIRST=['Shadow','Storm','Pixel','Night','Frost','Nova','Dark','Golden','Swift','Crystal','Mystic','Thunder','Silent','Wild','Cyber','Blaze','Echo','Lunar','Solar','Rogue','Arctic','Rapid','Vortex','Lucky','Phantom','Iron','Neon','Cloud','Silver','Raven'];
+const LAST=['Wolf','Ninja','Rider','Hunter','Fox','Knight','Runner','Dragon','Falcon','Legend','Master','Ghost','Tiger','Hawk','Storm','Blade','Spark','Viper','Ace','King','Wizard','Scout','Hero','Shadow','Pilot','Bear','Lion','Star','Comet'];
 
 const randomName=()=>FIRST[Math.floor(Math.random()*FIRST.length)]+LAST[Math.floor(Math.random()*LAST.length)]+Math.floor(Math.random()*90+10);
 const rand=(a,b)=>a+Math.random()*(b-a);
@@ -1175,15 +1333,12 @@ function addFeed(killer,victim,boss=false){
 
 function rarityRoll(boss=false){
  if(boss)return RARITIES[5];
-
  const r=Math.random()*100;
  let total=0;
-
  for(let i=0;i<5;i++){
   total+=RARITIES[i].chance;
   if(r<total)return RARITIES[i];
  }
-
  return RARITIES[0];
 }
 
@@ -1201,8 +1356,7 @@ function updateWeaponHUD(){
  weapon.rarity.name+' · '+weapon.name+' · '+weapon.ammo+' ENERGY':
  'NO WEAPON · FIND A CHEST';
 
- $('weaponHUD').style.border=
- '2px solid '+(weapon?'#'+weapon.rarity.color.toString(16).padStart(6,'0'):'#777');
+ $('weaponHUD').style.border='2px solid '+(weapon?'#'+weapon.rarity.color.toString(16).padStart(6,'0'):'#777');
 }
 
 function addLight(){
@@ -1230,7 +1384,6 @@ function createTree(x,z){
  const trunk=new THREE.Mesh(new THREE.CylinderGeometry(.6,.8,5,7),mat(0x79502c));
  trunk.position.set(x,2.5,z);
  scene.add(trunk);
-
  const leaves=new THREE.Mesh(new THREE.ConeGeometry(3.3,8,8),mat(0x176b35));
  leaves.position.set(x,8,z);
  scene.add(leaves);
@@ -1258,10 +1411,7 @@ function createBuilding(x,z,color=0x89939a,size=1){
  roof.position.y=h+.3;
  g.add(roof);
 
- const windowMat=new THREE.MeshStandardMaterial({
-  color:0x8ddcff,
-  emissive:0x21445b
- });
+ const windowMat=new THREE.MeshStandardMaterial({color:0x8ddcff,emissive:0x21445b});
 
  for(let y=2;y<h-1;y+=3){
   for(let side of [-1,1]){
@@ -1306,7 +1456,6 @@ function createPOI(name,x,z,color){
   const mountain=new THREE.Mesh(new THREE.ConeGeometry(35,55,7),mat(0x8da8b7));
   mountain.position.set(x,24,z);
   scene.add(mountain);
-
   const snow=new THREE.Mesh(new THREE.ConeGeometry(13,22,7),mat(0xe8f5ff));
   snow.position.set(x,40,z);
   scene.add(snow);
@@ -1344,7 +1493,6 @@ function createIsland(){
   const r=rand(30,WORLD-20);
   const x=Math.cos(a)*r;
   const z=Math.sin(a)*r;
-
   if(POIS.some(p=>Math.hypot(x-p[1],z-p[2])<32))continue;
   createTree(x,z);
  }
@@ -1358,7 +1506,6 @@ function createIsland(){
 
 function createBus(){
  const g=new THREE.Group();
-
  const body=new THREE.Mesh(new THREE.BoxGeometry(10,3,5),mat(0x7027bf));
  body.position.y=0;
  g.add(body);
@@ -1372,13 +1519,11 @@ function createBus(){
   rope.position.set(x,5,z);
   g.add(rope);
  }
-
  return g;
 }
 
 function createCharacter(color,boss=false){
  const g=new THREE.Group();
-
  const body=new THREE.Mesh(new THREE.CapsuleGeometry(.7,1.1,4,8),mat(color));
  body.position.y=1.1;
  g.add(body);
@@ -1396,34 +1541,24 @@ function createCharacter(color,boss=false){
   crown.position.y=3;
   g.add(crown);
  }
-
  return g;
 }
 
 function createBot(i){
- const boss=(i%20===0);
+ const boss=i%20===0;
  const colors=[0xe34b42,0x8c48d9,0xe5a52d,0x35a7a0,0x527caa,0x8b9b4b];
-
  const bot=createCharacter(boss?0x9d263c:colors[i%colors.length],boss);
+
  const a=Math.random()*Math.PI*2;
  const r=rand(40,WORLD-35);
-
  bot.position.set(Math.cos(a)*r,0,Math.sin(a)*r);
 
  bot.userData={
-  name:randomName(),
-  boss,
-  health:boss?220:100,
-  maxHealth:boss?220:100,
-  weapon:null,
-  cooldown:rand(1,4),
-  think:0,
-  target:null,
-  lootTarget:null,
-  speed:boss?5.5:rand(5,8),
-  wander:Math.random()*6
+  name:randomName(),boss,
+  health:boss?220:100,maxHealth:boss?220:100,
+  weapon:null,cooldown:rand(1,4),think:0,target:null,
+  lootTarget:null,speed:boss?5.5:rand(5,8),wander:Math.random()*6
  };
-
  return bot;
 }
 
@@ -1448,7 +1583,6 @@ function createChest(x,z){
 
  g.position.set(x,0,z);
  scene.add(g);
-
  g.userData={opened:false,lid,glow};
  chests.push(g);
 }
@@ -1464,11 +1598,7 @@ function createHiddenCode(code,x,z){
 
  const crystal=new THREE.Mesh(
   new THREE.OctahedronGeometry(1.1),
-  new THREE.MeshStandardMaterial({
-   color:0xb34cff,
-   emissive:0x8b25ff,
-   emissiveIntensity:2
-  })
+  new THREE.MeshStandardMaterial({color:0xb34cff,emissive:0x8b25ff,emissiveIntensity:2})
  );
  crystal.position.y=1.5;
  group.add(crystal);
@@ -1487,14 +1617,12 @@ function createHiddenCode(code,x,z){
 
  group.position.set(x,0,z);
  group.userData.code=code;
-
  scene.add(group);
  secretCodeItems.push(group);
 }
 
 function createIslandCodes(){
  secretCodeItems=[];
-
  createHiddenCode('CAVE2026',-230,30);
  createHiddenCode('RADAR777',125,-120);
  createHiddenCode('FROST2026',20,185);
@@ -1509,18 +1637,13 @@ function discoverIslandCode(){
  for(const item of secretCodeItems){
   if(!item.visible)continue;
   const d=player.position.distanceTo(item.position);
-
-  if(d<best){
-   best=d;
-   nearest=item;
-  }
+  if(d<best){best=d;nearest=item}
  }
 
  if(!nearest)return false;
 
  const code=nearest.userData.code;
  const found=arr('stormFoundIslandCodes',[]);
-
  found.push(code);
  save('stormFoundIslandCodes',found);
  nearest.visible=false;
@@ -1528,7 +1651,6 @@ function discoverIslandCode(){
  const box=$('interaction');
  box.textContent='SECRET CODE FOUND: '+code;
  box.style.display='block';
-
  setTimeout(()=>box.style.display='none',3500);
  return true;
 }
@@ -1539,7 +1661,6 @@ function discoverIslandCode(){
 function init(){
  clock=new THREE.Clock();
  scene=new THREE.Scene();
-
  camera=new THREE.PerspectiveCamera(75,innerWidth/innerHeight,.1,900);
 
  renderer=new THREE.WebGLRenderer({antialias:true});
@@ -1555,7 +1676,6 @@ function init(){
  const skinId=localStorage.getItem(S.skin)||'blue';
  player=createCharacter(SKINS[skinId].color);
  scene.add(player);
-
  player.position.set(0,28,220);
 
  airship=createBus();
@@ -1598,7 +1718,6 @@ function init(){
 
  updateHealth();
  updateWeaponHUD();
-
  $('mapPanel').style.display='none';
  $('interaction').style.display='none';
 
@@ -1620,7 +1739,6 @@ function keyDown(e){
 
  if(e.code==='Space'){
   e.preventDefault();
-
   if(!jumped)jumpFromBus();
   else if(canJump){
    velocityY=9;
@@ -1631,7 +1749,6 @@ function keyDown(e){
  if(e.code==='KeyE'&&started&&jumped){
   if(!discoverIslandCode())openNearbyChest();
  }
-
  if(e.code==='KeyM'&&started)toggleMap();
 }
 
@@ -1650,13 +1767,11 @@ function canvasClick(){
   renderer.domElement.requestPointerLock();
   return;
  }
-
  if(jumped)shoot();
 }
 
 function jumpFromBus(){
  if(jumped)return;
-
  jumped=true;
  player.position.copy(airship.position);
  velocityY=-3;
@@ -1666,7 +1781,6 @@ function jumpFromBus(){
 function toggleMap(){
  mapOpen=!mapOpen;
  $('mapPanel').style.display=mapOpen?'block':'none';
-
  if(mapOpen)document.exitPointerLock();
  else renderer.domElement.requestPointerLock();
 }
@@ -1680,13 +1794,8 @@ function openNearbyChest(){
 
  chests.forEach(c=>{
   if(c.userData.opened)return;
-
   const d=player.position.distanceTo(c.position);
-
-  if(d<best){
-   best=d;
-   nearest=c;
-  }
+  if(d<best){best=d;nearest=c}
  });
 
  if(!nearest){
@@ -1700,7 +1809,7 @@ function openNearbyChest(){
  nearest.userData.lid.rotation.x=-1.1;
  nearest.userData.glow.intensity=0;
 
- const w=makeWeapon(false);
+ const w=makeWeapon(liveEvent?.event_type==='super_chests');
  weapon=w;
  updateWeaponHUD();
  addXP(20);
@@ -1719,20 +1828,15 @@ function openBotChest(bot){
 
  chests.forEach(c=>{
   if(c.userData.opened)return;
-
   const d=bot.position.distanceTo(c.position);
-
-  if(d<best){
-   best=d;
-   nearest=c;
-  }
+  if(d<best){best=d;nearest=c}
  });
 
  if(nearest){
   nearest.userData.opened=true;
   nearest.userData.lid.rotation.x=-1.1;
   nearest.userData.glow.intensity=0;
-  bot.userData.weapon=makeWeapon(false);
+  bot.userData.weapon=makeWeapon(liveEvent?.event_type==='super_chests');
  }
 }
 
@@ -1748,7 +1852,6 @@ function removeBot(bot,killer){
 
  const boss=bot.userData.boss;
  addFeed(killer,bot.userData.name,boss);
-
  scene.remove(bot);
  bots=bots.filter(b=>b!==bot);
  updatePlayersLeft();
@@ -1765,7 +1868,7 @@ function removeBot(bot,killer){
    weapon=makeWeapon(true);
    updateWeaponHUD();
    addFeed('SYSTEM','MYTHIC DROP',true);
-   addSC(10);
+   addEarnedSC(10);
   }
  }
 
@@ -1774,31 +1877,25 @@ function removeBot(bot,killer){
 
 function damageBot(bot,amount,killer){
  if(!bots.includes(bot))return;
-
  bot.userData.health-=amount;
-
  if(bot.userData.health<=0)removeBot(bot,killer);
 }
 
 function damagePlayer(amount,killer){
  if(!started)return;
-
  health=Math.max(0,health-amount);
  updateHealth();
 
  const flash=$('damageFlash');
  flash.style.opacity='1';
  setTimeout(()=>flash.style.opacity='0',130);
-
  if(health<=0)loseGame(killer);
 }
 
 function updateHealth(){
  $('healthText').textContent='HEALTH: '+health;
  $('healthFill').style.width=health+'%';
-
- $('healthFill').style.background=
-  health>60?'#38dc62':health>30?'#ffb52e':'#ff3939';
+ $('healthFill').style.background=health>60?'#38dc62':health>30?'#ffb52e':'#ff3939';
 }
 
 // =====================================
@@ -1813,7 +1910,6 @@ function shoot(){
  }
 
  const now=performance.now();
-
  if(now-lastShot<weapon.rarity.rate*1000||weapon.ammo<=0)return;
 
  lastShot=now;
@@ -1825,11 +1921,9 @@ function shoot(){
 
  const ray=new THREE.Raycaster(camera.position.clone(),dir,0,110);
  const parts=[];
-
  bots.forEach(b=>b.children.forEach(p=>parts.push(p)));
 
  const hits=ray.intersectObjects(parts,false);
-
  if(hits.length){
   const target=bots.find(b=>b.children.includes(hits[0].object));
   if(target)damageBot(target,weapon.rarity.damage,'YOU');
@@ -1839,7 +1933,6 @@ function shoot(){
   new THREE.SphereGeometry(.13,8,8),
   new THREE.MeshBasicMaterial({color:weapon.rarity.color})
  );
-
  orb.position.copy(camera.position).addScaledVector(dir,2);
  scene.add(orb);
  setTimeout(()=>scene.remove(orb),100);
@@ -1866,26 +1959,18 @@ function updateBots(dt){
 
     chests.forEach(c=>{
      if(c.userData.opened)return;
-
      const d=bot.position.distanceTo(c.position);
-
-     if(d<best){
-      best=d;
-      chest=c;
-     }
+     if(d<best){best=d;chest=c}
     });
-
     data.lootTarget=chest;
    }
 
    if(data.lootTarget&&!data.lootTarget.userData.opened){
     moveBot(bot,data.lootTarget.position,dt);
-
     if(bot.position.distanceTo(data.lootTarget.position)<3)openBotChest(bot);
    }else{
     wanderBot(bot,dt);
    }
-
    continue;
   }
 
@@ -1894,9 +1979,7 @@ function updateBots(dt){
 
   for(const other of bots){
    if(other===bot)continue;
-
    const d=bot.position.distanceTo(other.position);
-
    if(d<closest&&d<85){
     closest=d;
     target=other;
@@ -1907,14 +1990,9 @@ function updateBots(dt){
    if(target===player&&Math.random()<.25)wanderBot(bot,dt);
    else moveBot(bot,target.position,dt);
   }else{
-   bot.rotation.y=Math.atan2(
-    target.position.x-bot.position.x,
-    target.position.z-bot.position.z
-   );
-
+   bot.rotation.y=Math.atan2(target.position.x-bot.position.x,target.position.z-bot.position.z);
    if(data.cooldown<=0){
     data.cooldown=rand(1.1,2.1);
-
     if(target===player)damagePlayer(data.weapon.rarity.damage*.18,data.name);
     else damageBot(target,data.weapon.rarity.damage*.45,data.name);
    }
@@ -1936,13 +2014,11 @@ function moveBot(bot,target,dt){
 
 function wanderBot(bot,dt){
  bot.userData.wander-=dt;
-
  if(bot.userData.wander<=0){
   bot.userData.wander=rand(2,6);
   bot.userData.wanderX=rand(-WORLD+30,WORLD-30);
   bot.userData.wanderZ=rand(-WORLD+30,WORLD-30);
  }
-
  moveBot(bot,{
   x:bot.userData.wanderX||bot.position.x,
   z:bot.userData.wanderZ||bot.position.z
@@ -1955,13 +2031,10 @@ function wanderBot(bot,dt){
 function updateMap(){
  const x=50+player.position.x/WORLD*42;
  const z=50+player.position.z/WORLD*42;
-
  const px=Math.max(8,Math.min(92,x));
  const pz=Math.max(8,Math.min(92,z));
-
  $('mapDot').style.left=px+'%';
  $('mapDot').style.top=pz+'%';
-
  $('miniPlayer').style.left=px+'%';
  $('miniPlayer').style.top=pz+'%';
 }
@@ -1971,42 +2044,34 @@ function updateMap(){
 // =====================================
 function showEndScreen(won,killer='THE ISLAND'){
  if(!started)return;
-
  started=false;
  document.exitPointerLock();
 
  const screen=$('endScreen');
- const title=$('endTitle');
- const rank=$('endRank');
- const message=$('endMessage');
-
  screen.style.display='flex';
 
  if(won){
-  title.textContent='STORM ROYALE!';
-  rank.textContent='#1';
-  message.textContent='YOU ARE THE LAST ONE STANDING!';
+  $('endTitle').textContent='STORM ROYALE!';
+  $('endRank').textContent='#1';
+  $('endMessage').textContent='YOU ARE THE LAST ONE STANDING!';
  }else{
-  title.textContent='GAME OVER';
-  rank.textContent='';
-  message.textContent='YOU WERE ELIMINATED BY '+killer+'!';
+  $('endTitle').textContent='GAME OVER';
+  $('endRank').textContent='';
+  $('endMessage').textContent='YOU WERE ELIMINATED BY '+killer+'!';
  }
 }
 
 function winGame(){
  if(!started)return;
-
  localStorage.setItem(S.wins,String(num(S.wins)+1));
  updateQuestProgress('match');
  addXP(300);
  checkQuests();
-
  showEndScreen(true);
 }
 
 function loseGame(killer){
  if(!started)return;
-
  updateQuestProgress('match');
  showEndScreen(false,killer);
 }
@@ -2025,7 +2090,6 @@ function animate(){
   airship.position.z-=dt*2;
   player.position.copy(airship.position);
   player.position.y+=2;
-
   $('phaseText').textContent='PRESS SPACE TO JUMP';
  }else{
   const forward=new THREE.Vector3(-Math.sin(yaw),0,-Math.cos(yaw));
@@ -2053,7 +2117,6 @@ function animate(){
   }
 
   const d=Math.hypot(player.position.x,player.position.z);
-
   if(d>WORLD-5){
    player.position.x*=(WORLD-5)/d;
    player.position.z*=(WORLD-5)/d;
@@ -2070,7 +2133,6 @@ function animate(){
  );
 
  camera.position.lerp(target,Math.min(1,dt*7));
-
  camera.lookAt(
   player.position.x-Math.sin(yaw)*10,
   player.position.y+1.5+Math.sin(pitch)*5,
@@ -2106,12 +2168,8 @@ async function startGame(){
  }
 
  if(ban.banned){
-  authMessage(
-   'YOU ARE BANNED: '+activeBan.reason+
-   (activeBan.banned_until?
-    ' · Until '+new Date(activeBan.banned_until).toLocaleString():
-    ' · Permanent ban')
-  );
+  authMessage('YOU ARE BANNED: '+activeBan.reason+
+   (activeBan.banned_until?' · Until '+new Date(activeBan.banned_until).toLocaleString():' · Permanent ban'));
   $('accountPanel').scrollIntoView({behavior:'smooth',block:'center'});
   return;
  }
@@ -2159,7 +2217,6 @@ function backToLobby(){
 
 function resize(){
  if(!camera||!renderer)return;
-
  camera.aspect=innerWidth/innerHeight;
  camera.updateProjectionMatrix();
  renderer.setSize(innerWidth,innerHeight);
@@ -2170,9 +2227,7 @@ window.backToLobby=backToLobby;
 $('enterLobby').onclick=()=>{
  $('intro').style.display='none';
  $('lobby').style.display='block';
-
  initLobby3D();
-
  updateCurrency();
  refreshSkinSelect();
  refreshShop();
